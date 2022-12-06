@@ -1,0 +1,26 @@
+{% extends 'base.html' %}
+
+{% block content %}
+    <div class="container theme-showcase" role="main">
+
+      <div>
+        <h1>League Owners</h1>
+        <a type="button" class="btn btn-link" href="{{ url_for('sign_book') }}">Sign the Guest Book</a>
+      </div>
+      <!-- <h1>Current Season: {{ season }}</h1>
+      <br>
+      <h2>Current Week: {{ week }}</h2> -->
+      <p>{{league}}</p>
+      <!-- {% for r in result %}
+
+      <div class="page-header">
+        <h1>Current Season{{ r.name }}</h1>
+      </div>
+      <div class="well">
+        <p>{{ r.comment }}</p>
+      </div>
+      {% endfor %} -->
+    </div> <!-- /container -->
+
+{% endblock %}
+

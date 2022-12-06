@@ -1,0 +1,21 @@
+body {
+    background: #f4f4f4;
+}
+
+h1 {
+    color: darkblue;
+    font-family: 'Libre Baskerville';
+    font-size: 30;
+}
+
+h2 {
+    color: darkblue;
+    font-family: 'Libre Baskerville';
+    font-size: 18;
+}
+
+#demo {
+    font-family: 'Roboto';
+    color: navy;
+    font-size: 10;
+}
