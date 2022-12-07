@@ -14,7 +14,7 @@ from werkzeug.utils import secure_filename
 import uuid as uuid
 import os
 
-from config import DBName, DBPassword, DBUsername, FormKey
+from config import DBName, DBPassword, DBUsername, FormKey, DBHost, DBPort
 import pandas as pd
 
 convention = {
@@ -31,7 +31,8 @@ app = Flask(__name__)
 #add CKEditor for rich text text fields
 ckeditor = CKEditor(app)
 # app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///testsleeper.db'
-app.config['SQLALCHEMY_DATABASE_URI'] = f'postgresql://{DBUsername}:{DBPassword}@localhost/{DBName}'
+# postgresql://${{ PGUSER }}:${{ PGPASSWORD }}@${{ PGHOST }}:${{ PGPORT }}/${{ PGDATABASE }}
+app.config['SQLALCHEMY_DATABASE_URI'] = f'postgresql://{DBUsername}:{DBPassword}@{DBHost}:{DBPort}/{DBName}'
 
 
 
@@ -216,8 +217,8 @@ def getPlayers():
     position_list = ['QB', 'WR', 'RB', 'TE', 'K']
     added_player_count = 0
     #add status logic
-    for id in player_id_list:     
-        if players[id]['position'] in position_list and players[id]['status'] != "Inactive" and added_player_count < 5000:
+    for id in player_id_list:  
+        if (players[id]['position'] in position_list) and (players[id]['search_rank'] != 9999999) and (players[id]['active'] == True) and (added_player_count < 5000): 
             player_to_update = Player.query.filter_by(id=id).first()
             if player_to_update == None:
                 p = Player()
@@ -235,6 +236,7 @@ def getPlayers():
                 added_player_count += 1
                 print(f'added player {p.full_name} with id {p.id}.')
             else: print(f'player {players[id]["full_name"]} already exists, no changes made.')
+        # added_player_count += 1
     flash(f"successfully added {added_player_count} players")
 
         
@@ -736,7 +738,7 @@ class Comments(db.Model):
 
 
 if __name__ == '__main__':
-    # app.run(debug=False)
+    # app.run(debug=True)
     app.run(host='0.0.0.0', port=3000)
 
 
