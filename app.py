@@ -218,7 +218,7 @@ def getPlayers():
     added_player_count = 0
     #add status logic
     for id in player_id_list:  
-        if (players[id]['position'] in position_list) and (players[id]['search_rank'] != 9999999) and (players[id]['active'] == True) and (added_player_count < 5000): 
+        if (players[id]['position'] in position_list) and (players[id]['search_rank'] != 9999999) and (players[id]['active'] == True) and (added_player_count < 50): 
             player_to_update = Player.query.filter_by(id=id).first()
             if player_to_update == None:
                 p = Player()
@@ -231,6 +231,7 @@ def getPlayers():
                 p.first_name = players[id]['first_name']
                 p.position = players[id]['position']
                 p.status = players[id]['status']
+                p.team = players[id]['team']
                 db.session.add(p)
                 db.session.commit()
                 added_player_count += 1
@@ -654,6 +655,7 @@ class Player(db.Model):
     search_first_name = db.Column(db.String(20))
     position = db.Column(db.String(20))
     status = db.Column(db.String(50))
+    team = db.Column(db.String(20))
 
 # rosters = db.relationship('Roster', backref='player', lazy=True)
 # date_added
@@ -738,8 +740,9 @@ class Comments(db.Model):
 
 
 if __name__ == '__main__':
-    # app.run(debug=True)
-    app.run(host='0.0.0.0', port=3000)
+    db.create_all()
+    app.run(debug=True)
+    # app.run(host='0.0.0.0', port=3000)
 
 
 #features to add in future:
