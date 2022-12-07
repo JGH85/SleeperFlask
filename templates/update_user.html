@@ -11,10 +11,14 @@
 
 	
 {% endfor %}
-
+<br>
 
 	<h1>Update User...</h1>
 	<br/>
+	<!-- <p>Id to Update: {{ id }}</p>
+	<p>Current User Id: {{ current_user.id }}</p> -->
+
+{% if current_user.id == id %}
 <div class="shadow p-3 mb-5 bg-body rounded">
 	<form action="/user/update/{{ name_to_update.id }}" method="POST">
 		{{ form.hidden_tag() }}
@@ -22,6 +26,11 @@
 		{{ form.name.label(class="form-label") }}
 
 		{{ form.name(class="form-control", value=name_to_update.name) }}
+		<br/>
+
+		{{ form.username.label(class="form-label") }}
+
+		{{ form.username(class="form-control", value=name_to_update.name) }}
 		<br/>
 
 
@@ -43,6 +52,15 @@
 
 	</form>
 </div>
+
+{% else %}
+<link href="{{ url_for('static', filename='css/sign.css') }}" rel="stylesheet">
+
+<img src="{{ url_for('static', filename='images/flag.jpg') }}" alt="Flag on the Play">
+<br>
+<br>
+You can only update the current user. 
+{% endif %}
 <br/><br/><br/>
 
 

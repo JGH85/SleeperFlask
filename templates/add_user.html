@@ -36,6 +36,11 @@
 	<form method="POST">
 		{{ form.hidden_tag() }}
 
+		{{ form.username.label(class="form-label") }}
+
+		{{ form.username(class="form-control") }}
+		<br/>
+
 		{{ form.name.label(class="form-label") }}
 
 		{{ form.name(class="form-control") }}
@@ -74,6 +79,7 @@
 	<tr>
 	<td>{{ our_user.id }}. 
 		<a href="{{ url_for('update_user', id=our_user.id)}}">{{ our_user.name }}</a>
+		- {{ our_user.username }} 
 		 - {{ our_user.email }} 
 		 - {{ our_user.teamname }} 
 		 - {{ our_user.password_hash }}

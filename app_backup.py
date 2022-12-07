@@ -3,16 +3,15 @@ import requests
 from flask import Flask, render_template, request, redirect, url_for, flash
 from flask_sqlalchemy import SQLAlchemy
 from flask_migrate import Migrate
+from flask_wtf import FlaskForm
+from wtforms import StringField, SubmitField, PasswordField, BooleanField, ValidationError
+from wtforms.validators import DataRequired, EqualTo, Length
+from wtforms.widgets import TextArea
 from datetime import datetime 
 from werkzeug.security import generate_password_hash, check_password_hash
 from flask_login import UserMixin, login_user, LoginManager, login_required, logout_user, current_user
 import json
 from sqlalchemy import MetaData
-from flask_ckeditor import CKEditor
-from webforms import *
-from werkzeug.utils import secure_filename
-import uuid as uuid
-import os
 
 from config import DBName, DBPassword, DBUsername, FormKey
 import pandas as pd
@@ -28,21 +27,13 @@ convention = {
 metadata = MetaData(naming_convention=convention)
 
 app = Flask(__name__)
-#add CKEditor for rich text text fields
-ckeditor = CKEditor(app)
-# app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///testsleeper.db'
-app.config['SQLALCHEMY_DATABASE_URI'] = f'postgresql://{DBUsername}:{DBPassword}@localhost/{DBName}'
+app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///testsleeper.db'
+app.config['SECRET_KEY'] = "super secret key"
 
-
-
-# app.config['SECRET_KEY'] = "super secret key"
-
-UPLOAD_FOLDER = 'static/images/'
-app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 
 # app.config['SQLALCHEMY_DATABASE_URI'] = f'mysql://{DBUsername}:{DBPassword}@localhost/{DBName}'
 # app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
-app.config['SECRET_KEY'] = FormKey
+# app.config['SECRET_KEY'] = FormKey
 
 #initialize the database
 db = SQLAlchemy(app, metadata=metadata)
@@ -58,20 +49,207 @@ def load_user(user_id):
 	return Users.query.get(int(user_id))
 
 
-# Create Custom Error Pages
 
-# Invalid URL
-@app.errorhandler(404)
-def page_not_found(e):
-	return render_template("404.html"), 404
+class Users(db.Model, UserMixin):
+	id = db.Column(db.Integer, primary_key=True)
+	username = db.Column(db.String(20), nullable=False, unique=True)
+	name = db.Column(db.String(200), nullable=False)
+	email = db.Column(db.String(120), nullable=False, unique=True)
+	teamname = db.Column(db.String(40))
+	# about_author = db.Column(db.Text(), nullable=True)
+	date_added = db.Column(db.DateTime, default=datetime.utcnow)
+	# profile_pic = db.Column(db.String(), nullable=True)
 
-# Internal Server Error
-@app.errorhandler(500)
-def page_not_found(e):
-	return render_template("500.html"), 500
+	# Do some password stuff!
+	password_hash = db.Column(db.String(128))
+
+	# Create A String
+	def __repr__(self):
+		return '<Name %r>' % self.name
+
+	@property
+	def password(self):
+		raise AttributeError('password is not a readable attribute!')
+
+	@password.setter
+	def password(self, password):
+		self.password_hash = generate_password_hash(password)
+
+	def verify_password(self, password):
+		return check_password_hash(self.password_hash, password)
 
 
-admin_user_list = [1,2]
+
+
+# class Users(db.Model, UserMixin):
+# 	id = db.Column(db.Integer, primary_key=True)
+# 	username = db.Column(db.String(20), nullable=False, unique=True)
+# 	name = db.Column(db.String(200), nullable=False)
+# 	email = db.Column(db.String(120), nullable=False, unique=True)
+# 	favorite_color = db.Column(db.String(120))
+# 	about_author = db.Column(db.Text(), nullable=True)
+# 	date_added = db.Column(db.DateTime, default=datetime.utcnow)
+# 	profile_pic = db.Column(db.String(), nullable=True)
+
+# 	# Do some password stuff!
+# 	password_hash = db.Column(db.String(128))
+# 	# User Can Have Many Posts 
+# 	posts = db.relationship('Posts', backref='poster')
+
+
+# 	@property
+# 	def password(self):
+# 		raise AttributeError('password is not a readable attribute!')
+
+# 	@password.setter
+# 	def password(self, password):
+# 		self.password_hash = generate_password_hash(password)
+
+# 	def verify_password(self, password):
+# 		return check_password_hash(self.password_hash, password)
+
+
+class Posts(db.Model):
+    id = db.Column(db.Integer, primary_key = True)
+    title = db.Column(db.String(255))
+    content = db.Column(db.Text)
+    author = db.Column(db.String(255))
+    date_posted = db.Column(db.DateTime, default=datetime.utcnow)
+    slug = db.Column(db.String(255))
+
+class PostForm(FlaskForm):
+    title = StringField("Title", validators=[DataRequired()])
+    content = StringField("Content", validators=[DataRequired()], widget=TextArea())
+	# content = CKEditorField('Content', validators=[DataRequired()])
+    author = StringField("Author")
+    slug = StringField("Slug", validators=[DataRequired()])
+    submit = SubmitField("Submit")
+
+class Player(db.Model):
+    id = db.Column(db.Integer, primary_key = True)
+    full_name = db.Column(db.String(20), nullable=False)
+    last_name = db.Column(db.String(20))
+    first_name = db.Column(db.String(20))
+    search_full_name = db.Column(db.String(40))
+    search_last_name = db.Column(db.String(20))
+    search_first_name = db.Column(db.String(20))
+    position = db.Column(db.String(20))
+    # rosters = db.relationship('Roster', backref='player', lazy=True)
+    # date_added
+    # date_updated
+    
+class Team(db.Model):
+    id = db.Column(db.Integer, primary_key = True)
+    team_name = db.Column(db.String(60))
+    owner_id = db.Column(db.Integer)
+
+    # last_name = db.Column(db.String(20))
+    # first_name = db.Column(db.String(20))
+    # search_full_name = db.Column(db.String(40))
+    # search_last_name = db.Column(db.String(20))
+    # search_first_name = db.Column(db.String(20))
+    # position = db.Column(db.String(20))
+
+class Roster(db.Model):
+    id = db.Column(db.Integer, primary_key = True)
+    team_id = db.Column(db.Integer)
+    # player_id = db.Column(db.Integer, db.ForeignKey('player.id'), nullable=False)
+    season = db.Column(db.Integer)
+    salary = db.Column(db.Numeric)
+    is_Franchised = db.Column(db.Boolean)
+    date_added = db.Column(db.DateTime)
+    date_removed = db.Column(db.DateTime)
+    date_updated = db.Column(db.DateTime)
+
+class CapHold(db.Model):
+    id = db.Column(db.Integer, primary_key = True)
+    team_id = db.Column(db.Integer)
+    player_id = db.Column(db.Integer)
+    season = db.Column(db.Integer)
+    caphold = db.Column(db.Numeric)
+    reason = db.Column(db.String(20))
+    note = db.Column(db.String(200))
+    effective_date = db.Column(db.DateTime) #date that the transaction occurred
+    date_updated = db.Column(db.DateTime) #date that the transaction got added to DB
+
+class TransactionFA(db.Model):
+    id = db.Column(db.Integer, primary_key = True)
+    transaction_type = db.Column(db.String(20))
+    roster_id = db.Column(db.Integer)
+    dropped_player_id = db.Column(db.Integer)
+    added_player_id = db.Column(db.Integer)
+    added_salary = db.Column(db.Numeric)
+    status_updated = db.Column(db.Integer)
+    transaction_date = db.Column(db.DateTime)
+
+# this class tracks when last data pulls occurred
+class DataUpdateLog(db.Model):
+    id = db.Column(db.Integer, primary_key = True)
+    lastPlayerUpdateDate = db.Column(db.Date)
+    lastNFLStateUpdateDate = db.Column(db.Date)
+    lastOwnerUpdateDate = db.Column(db.Date)
+    lastRosterUpdateDate = db.Column(db.Date)
+    lastTransactionUpdateDate = db.Column(db.Date)
+
+#a transaction which is a trade gets stored as multiple rows, 1 or more per team depending on number of players in trade
+class TradeTransaction(db.Model):
+    id = db.Column(db.Integer, primary_key = True)
+    transaction_id = db.Column(db.Integer) #there can be multiple rows per trade
+    roster_id = db.Column(db.Integer)
+    dropped_player_id = db.Column(db.Integer)
+    added_player_id = db.Column(db.Integer)
+    status_updated = db.Column(db.Integer)
+    transaction_date = db.Column(db.DateTime)
+    
+
+
+
+
+class Comments(db.Model):
+    id = db.Column(db.Integer, primary_key = True)
+    name = db.Column(db.String(20))
+    comment = db.Column(db.String(1000))
+
+#Create Form Class
+class NamerForm(FlaskForm):
+    name = StringField("Email", validators=[DataRequired()])
+    submit = SubmitField("Submit")
+
+class PasswordForm(FlaskForm):
+    email = StringField("Email", validators=[DataRequired()])
+    password_hash = PasswordField("Password", validators=[DataRequired()])
+    submit = SubmitField("Submit")
+
+class UserForm(FlaskForm):
+    name = StringField("Name", validators=[DataRequired()])
+    username = StringField("Username", validators=[DataRequired()])
+    email = StringField("Email", validators=[DataRequired()])
+    teamname = StringField("Teamname")
+    password_hash = PasswordField('Password', validators = [DataRequired(), EqualTo('password_hash2', "Passwords must match.")])
+    password_hash2 = PasswordField('Confirm Password', validators = [DataRequired()])
+    submit = SubmitField("Submit")
+
+class LoginForm(FlaskForm):
+	username = StringField("Username", validators=[DataRequired()])
+	password = PasswordField("Password", validators=[DataRequired()])
+	submit = SubmitField("Submit")
+
+
+
+#Create Form Classes
+class PlayerForm(FlaskForm):
+    playername = StringField("playername")
+    salary = StringField("Salary", validators=[DataRequired()])
+    teamname = StringField("Team Name")
+    submit = SubmitField("Submit")
+
+class PlayerRosterForm(FlaskForm):
+    playername = StringField("playername")
+    salary = StringField("Salary", validators=[DataRequired()])
+    teamname = StringField("Team Id")
+    submit = SubmitField("Submit")
+
+
 UserId = "499807936168587264"
 Sport = "nfl"
 LeagueId = "859990766557179904"
@@ -83,8 +261,8 @@ league_users_url = f'https://api.sleeper.app/v1/league/{LeagueId}/users'
 # players_url = 'https://api.sleeper.app/v1/players/nfl'
 
 
+
 @app.route('/user/update/<int:id>', methods = ['GET', 'POST'])
-@login_required
 def update_user(id):
     form = UserForm()
     name_to_update = Users.query.get_or_404(id)
@@ -140,7 +318,7 @@ def add_user():
 		our_users=our_users)
 
 @app.route('/user/delete/<int:id>')
-@login_required
+# @login_required
 def delete_user(id):
 	# Check logged in id vs. id to delete
 	# if id == current_user.id:
@@ -215,21 +393,19 @@ def getPlayers():
     player_id_list = list(players.keys())
     position_list = ['QB', 'WR', 'RB', 'TE', 'K']
     added_player_count = 0
-    #add status logic
     for id in player_id_list:     
-        if players[id]['position'] in position_list and players[id]['status'] != "Inactive" and added_player_count < 5000:
+        if players[id]['position'] in position_list and added_player_count < 15000:
             player_to_update = Player.query.filter_by(id=id).first()
             if player_to_update == None:
                 p = Player()
                 p.id = players[id]['player_id']
                 p.search_full_name = players[id]['search_full_name']
                 p.search_last_name = players[id]['search_last_name']
-                p.search_first_name = players[id]['search_first_name']
+                p.search_last_name = players[id]['search_first_name']
                 p.full_name = players[id]['full_name']
                 p.last_name = players[id]['last_name']
                 p.first_name = players[id]['first_name']
                 p.position = players[id]['position']
-                p.status = players[id]['status']
                 db.session.add(p)
                 db.session.commit()
                 added_player_count += 1
@@ -319,47 +495,81 @@ def get_player_info_limit(limit):
 
 @app.route('/')
 def index():
+    # flash('Welcome to the League Page!')
+    # result = Comments.query.all()
     return render_template('index.html')
 
-@app.route('/admin')
-@login_required
-def admin():
-    id = current_user.id
-    if id in admin_user_list:
-        return render_template('admin.html')
-    else: 
-        flash("You must be an admin to access that area.")
-        return redirect(url_for('index'))
 
-# #create test pw Page
-# @app.route('/test_pw', methods=['GET', 'POST'])
-# def test_pw():
-#     email = None
-#     password = None
-#     pw_to_check = None
-#     passed = None
+# @app.route('/sign')
+# def sign_book():
+#     return render_template('sign.html') 
+
+# @app.route('/process_sign', methods=['Post'])
+# def process_sign():
+#     name = request.form['name']
+#     comment = request.form['comment']
+
+#     signature = Comments(name=name, comment=comment)
+#     db.session.add(signature)
+#     db.session.commit()
+    
+#     return redirect(url_for('index'))
+
+# @app.route('/home', methods=['GET', 'POST'])
+# def home():
+#     links = [("YouTube","https://www.youtube.com"), ("Bing","https://www.bing.com"), ("DailyWire","https://www.dailywire.com")]
+#     return render_template('example.html', myvar = 'Rum Raisin', tuples = links)
+#     # return render_template('example.html')
 
 
-#     form = PasswordForm()
+# @app.route('/home/<place>')
+# def place(place):
+#     return f'<h1>You are on the {place} page!<h1>'
+
+
+# #create Name Page
+# @app.route('/name', methods=['GET', 'POST'])
+# def name():
+#     name = None
+#     form = NamerForm()
 #     #validate
 #     if form.validate_on_submit():
-#         email = form.email.data
-#         password = form.password_hash.data
-
-#         pw_to_check = Users.query.filter_by(email=email).first()
-#         passed = check_password_hash(pw_to_check.password_hash, password)
-        
-#         form.email.data = ""         
-#         form.password_hash.data = ""         
-
+#         name = form.name.data
+#         form.name.data = ""         
 #         flash("Form submitted successfully.")
-#     return render_template(
-#         'test_pw.html', 
-#         email=email, 
-#         password = password, 
-#         pw_to_check = pw_to_check,
-#         passed = passed,
-#         form=form)
+#     return render_template('name.html', 
+#     name=name, 
+#     form=form)
+
+#create test pw Page
+@app.route('/test_pw', methods=['GET', 'POST'])
+def test_pw():
+    email = None
+    password = None
+    pw_to_check = None
+    passed = None
+
+
+    form = PasswordForm()
+    #validate
+    if form.validate_on_submit():
+        email = form.email.data
+        password = form.password_hash.data
+
+        pw_to_check = Users.query.filter_by(email=email).first()
+        passed = check_password_hash(pw_to_check.password_hash, password)
+        
+        form.email.data = ""         
+        form.password_hash.data = ""         
+
+        flash("Form submitted successfully.")
+    return render_template(
+        'test_pw.html', 
+        email=email, 
+        password = password, 
+        pw_to_check = pw_to_check,
+        passed = passed,
+        form=form)
 
 # Add Post Page
 @app.route('/add-post', methods=['GET', 'POST'])
@@ -368,13 +578,14 @@ def add_post():
 	form = PostForm()
 
 	if form.validate_on_submit():
-		poster = current_user.id
-		post = Posts(title=form.title.data, content=form.content.data, poster_id=poster, slug=form.slug.data)
-		# post = Posts(title=form.title.data, content=form.content.data, author = form.author.data, slug=form.slug.data)
+		# poster = current_user.id
+		# post = Posts(title=form.title.data, content=form.content.data, poster_id=poster, slug=form.slug.data)
+		post = Posts(title=form.title.data, content=form.content.data, author = form.author.data, slug=form.slug.data)
 
         # Clear The Form
 		form.title.data = ''
 		form.content.data = ''
+		form.author.data = ''
 		form.slug.data = ''
 
 		# Add post data to database
@@ -399,13 +610,12 @@ def post(id):
 
 
 @app.route('/posts/edit/<int:id>', methods=['GET', 'POST'])
-@login_required
 def edit_post(id):
     post = Posts.query.get_or_404(id)
     form = PostForm()
     if form.validate_on_submit():
             post.title = form.title.data
-            # post.author = form.author.data
+            post.author = form.author.data
             post.slug = form.slug.data
             post.content = form.content.data
             # Update Database
@@ -413,36 +623,25 @@ def edit_post(id):
             db.session.commit()
             flash("Post Has Been Updated!")
             return redirect(url_for('post', id=post.id))
-
-    if current_user.id == post.poster.id:    
-        form.title.data = post.title
-        # form.author.data = post.author
-        form.slug.data = post.slug
-        form.content.data = post.content
-        return render_template('edit_post.html', form=form)
-    else:
-        flash("You can only edit your own posts.")
-        return redirect(url_for('posts'))
-
+    form.title.data = post.title
+    form.author.data = post.author
+    form.slug.data = post.slug
+    form.content.data = post.content
+    return render_template('edit_post.html', form=form)
 
 
 @app.route('/posts/delete/<int:id>', methods=['GET', 'POST'])
-@login_required
 def delete_post(id):
     post = Posts.query.get_or_404(id)
-    id = current_user.id
-    if id == post.poster.id:
-        try:
-            db.session.delete(post)
-            db.session.commit()
-            flash("Post successfully deleted.")
-            return redirect(url_for('posts'))
-        except:
-            flash("Deletion failed.")
-            return redirect(url_for('posts'))
-    else:
-        flash("You can't delete someone else's post.")
+    try:
+        db.session.delete(post)
+        db.session.commit()
+        flash("Post successfully deleted.")
         return redirect(url_for('posts'))
+    except:
+        flash("Deletion failed.")
+        return redirect(url_for('posts'))
+
     # form = PostForm()
     # if form.validate_on_submit():
     #         post.title = form.title.data
@@ -499,40 +698,40 @@ def dashboard():
         name_to_update.teamname = request.form['teamname']
         name_to_update.username = request.form['username']
         # name_to_update.about_author = request.form['about_author']
-        # name_to_update.profile_pic = request.files['profile_pic']
+		
 
+	# 	# Check for profile pic
+	# 	if request.files['profile_pic']:
+	# 		name_to_update.profile_pic = request.files['profile_pic']
 
-		# Check for profile pic
-        if request.files['profile_pic']:
-            name_to_update.profile_pic = request.files['profile_pic']
-
-            # Grab Image Name
-            pic_filename = secure_filename(name_to_update.profile_pic.filename)
-            # Set UUID
-            pic_name = str(uuid.uuid1()) + "_" + pic_filename
-            # Save That Image
-            saver = request.files['profile_pic']
+	# 		# Grab Image Name
+	# 		pic_filename = secure_filename(name_to_update.profile_pic.filename)
+	# 		# Set UUID
+	# 		pic_name = str(uuid.uuid1()) + "_" + pic_filename
+	# 		# Save That Image
+	# 		saver = request.files['profile_pic']
 			
-            # Change it to a string to save to db
-            name_to_update.profile_pic = pic_name
-            try:
-                db.session.commit()
-                saver.save(os.path.join(app.config['UPLOAD_FOLDER'], pic_name))
-                flash("User Updated Successfully!")
-                return render_template("dashboard.html", 
-                    form=form,
-                        name_to_update = name_to_update)
-            except:
-                flash("Error!  Looks like there was a problem...try again!")
-                return render_template("dashboard.html", 
-    				form=form,
-    				name_to_update = name_to_update)
-        else:
-            db.session.commit()
-            flash("User Updated Successfully!")
-            return render_template("dashboard.html", 
-                form=form, 
-                name_to_update = name_to_update)
+
+	# 		# Change it to a string to save to db
+	# 		name_to_update.profile_pic = pic_name
+	# 		try:
+	# 			db.session.commit()
+	# 			saver.save(os.path.join(app.config['UPLOAD_FOLDER'], pic_name))
+	# 			flash("User Updated Successfully!")
+	# 			return render_template("dashboard.html", 
+	# 				form=form,
+	# 				name_to_update = name_to_update)
+	# 		except:
+	# 			flash("Error!  Looks like there was a problem...try again!")
+	# 			return render_template("dashboard.html", 
+	# 				form=form,
+	# 				name_to_update = name_to_update)
+        # else:
+        db.session.commit()
+        flash("User Updated Successfully!")
+        return render_template("dashboard.html", 
+            form=form, 
+            name_to_update = name_to_update)
     else:
         return render_template("dashboard.html", 
 				form=form,
@@ -540,198 +739,6 @@ def dashboard():
 				id = id)
 
     return render_template('dashboard.html')
-
-#pass stuff to navbar
-@app.context_processor
-def base():
-    form = SearchForm()
-    #pass in admin user list
-    alist = admin_user_list
-    return dict(form=form, alist=alist)
-
-
-#search function
-@app.route('/search', methods=["POST"])
-def search():
-    form = SearchForm()
-    players = Player.query
-    if form.validate_on_submit():
-        searched = form.searched.data
-        #search for matching name
-        search_string = searched.replace(" ", "").lower()
-        print(search_string)
-
-        players = players.filter(Player.search_full_name.like('%' + search_string + '%'))
-        players = players.order_by(Player.last_name).all()
-
-        return render_template("search_results.html", form=form, searched = searched, players = players)
-
-
-
-
-#all models go below here ---------------------------------------------------------
-#------------------------------------------------------------------------------------------------------------------
-
-
-class Users(db.Model, UserMixin):
-	id = db.Column(db.Integer, primary_key=True)
-	username = db.Column(db.String(20), nullable=False, unique=True)
-	name = db.Column(db.String(200), nullable=False)
-	email = db.Column(db.String(120), nullable=False, unique=True)
-	teamname = db.Column(db.String(40))
-	# about_author = db.Column(db.Text(), nullable=True)
-	date_added = db.Column(db.DateTime, default=datetime.utcnow)
-	profile_pic = db.Column(db.String(), nullable=True)
-	# User Can Have Many Posts 
-	posts = db.relationship('Posts', backref='poster')
-
-	# Do some password stuff!
-	password_hash = db.Column(db.String(128))
-
-	# Create A String
-	def __repr__(self):
-		return '<Name %r>' % self.name
-
-	@property
-	def password(self):
-		raise AttributeError('password is not a readable attribute!')
-
-	@password.setter
-	def password(self, password):
-		self.password_hash = generate_password_hash(password)
-
-	def verify_password(self, password):
-		return check_password_hash(self.password_hash, password)
-
-# class Users(db.Model, UserMixin):
-# 	id = db.Column(db.Integer, primary_key=True)
-# 	username = db.Column(db.String(20), nullable=False, unique=True)
-# 	name = db.Column(db.String(200), nullable=False)
-# 	email = db.Column(db.String(120), nullable=False, unique=True)
-# 	favorite_color = db.Column(db.String(120))
-# 	about_author = db.Column(db.Text(), nullable=True)
-# 	date_added = db.Column(db.DateTime, default=datetime.utcnow)
-# 	profile_pic = db.Column(db.String(), nullable=True)
-
-# 	# Do some password stuff!
-# 	password_hash = db.Column(db.String(128))
-# 	# User Can Have Many Posts 
-# 	posts = db.relationship('Posts', backref='poster')
-
-
-# 	@property
-# 	def password(self):
-# 		raise AttributeError('password is not a readable attribute!')
-
-# 	@password.setter
-# 	def password(self, password):
-# 		self.password_hash = generate_password_hash(password)
-
-# 	def verify_password(self, password):
-# 		return check_password_hash(self.password_hash, password)
-
-class Posts(db.Model):
-    id = db.Column(db.Integer, primary_key = True)
-    title = db.Column(db.String(255))
-    content = db.Column(db.Text)
-    # author = db.Column(db.String(255))
-    date_posted = db.Column(db.DateTime, default=datetime.utcnow)
-    slug = db.Column(db.String(255))
-    #create foreign key to link to users
-    poster_id = db.Column(db.Integer, db.ForeignKey('users.id'))
-
-
-
-class Player(db.Model):
-    id = db.Column(db.Integer, primary_key = True)
-    full_name = db.Column(db.String(50), nullable=False)
-    last_name = db.Column(db.String(20))
-    first_name = db.Column(db.String(20))
-    search_full_name = db.Column(db.String(50))
-    search_last_name = db.Column(db.String(20))
-    search_first_name = db.Column(db.String(20))
-    position = db.Column(db.String(20))
-    status = db.Column(db.String(50))
-
-# rosters = db.relationship('Roster', backref='player', lazy=True)
-# date_added
-# date_updated
-    
-class Team(db.Model):
-    id = db.Column(db.Integer, primary_key = True)
-    team_name = db.Column(db.String(60))
-    owner_id = db.Column(db.Integer)
-
-    # last_name = db.Column(db.String(20))
-    # first_name = db.Column(db.String(20))
-    # search_full_name = db.Column(db.String(40))
-    # search_last_name = db.Column(db.String(20))
-    # search_first_name = db.Column(db.String(20))
-    # position = db.Column(db.String(20))
-
-class Roster(db.Model):
-    id = db.Column(db.Integer, primary_key = True)
-    team_id = db.Column(db.Integer)
-    
-    season = db.Column(db.Integer)
-    salary = db.Column(db.Numeric)
-    is_Franchised = db.Column(db.Boolean)
-    date_added = db.Column(db.DateTime)
-    date_removed = db.Column(db.DateTime)
-    date_updated = db.Column(db.DateTime)
-
-# player_id = db.Column(db.Integer, db.ForeignKey('player.id'), nullable=False)
-
-class CapHold(db.Model):
-    id = db.Column(db.Integer, primary_key = True)
-    team_id = db.Column(db.Integer)
-    player_id = db.Column(db.Integer)
-    season = db.Column(db.Integer)
-    caphold = db.Column(db.Numeric)
-    reason = db.Column(db.String(20))
-    note = db.Column(db.String(200))
-    effective_date = db.Column(db.DateTime) #date that the transaction occurred
-    date_updated = db.Column(db.DateTime) #date that the transaction got added to DB
-
-class TransactionFA(db.Model):
-    id = db.Column(db.Integer, primary_key = True)
-    transaction_type = db.Column(db.String(20))
-    roster_id = db.Column(db.Integer)
-    dropped_player_id = db.Column(db.Integer)
-    added_player_id = db.Column(db.Integer)
-    added_salary = db.Column(db.Numeric)
-    status_updated = db.Column(db.Integer)
-    transaction_date = db.Column(db.DateTime)
-
-# this class tracks when last data pulls occurred
-class DataUpdateLog(db.Model):
-    id = db.Column(db.Integer, primary_key = True)
-    lastPlayerUpdateDate = db.Column(db.Date)
-    lastNFLStateUpdateDate = db.Column(db.Date)
-    lastOwnerUpdateDate = db.Column(db.Date)
-    lastRosterUpdateDate = db.Column(db.Date)
-    lastTransactionUpdateDate = db.Column(db.Date)
-
-#a transaction which is a trade gets stored as multiple rows, 1 or more per team depending on number of players in trade
-class TradeTransaction(db.Model):
-    id = db.Column(db.Integer, primary_key = True)
-    transaction_id = db.Column(db.Integer) #there can be multiple rows per trade
-    roster_id = db.Column(db.Integer)
-    dropped_player_id = db.Column(db.Integer)
-    added_player_id = db.Column(db.Integer)
-    status_updated = db.Column(db.Integer)
-    transaction_date = db.Column(db.DateTime)
-    
-
-
-
-
-
-class Comments(db.Model):
-    id = db.Column(db.Integer, primary_key = True)
-    name = db.Column(db.String(20))
-    comment = db.Column(db.String(1000))
-
 
 
 

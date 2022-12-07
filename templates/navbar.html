@@ -15,6 +15,28 @@
           <li class="nav-item">
             <a class="nav-link" href="{{ url_for('getNFLState') }}">NFL State</a>
           </li>
+          {% if current_user.is_authenticated %}
+            <li class="nav-item">
+              <a class="nav-link" href="{{ url_for('logout') }}">Logout</a>
+            </li>
+            <li class="nav-item">
+              <a class="nav-link" href="{{ url_for('dashboard') }}">Dashboard</a>
+            </li>
+
+            {% if current_user.id in alist %}
+            <li class="nav-item">
+              <a class="nav-link" href="{{ url_for('admin') }}" style="color:red">Admin</a>
+            </li>
+            {% endif %}
+          {% else %}
+            <li class="nav-item">
+              <a class="nav-link" href="{{ url_for('add_user') }}">Register</a>
+            </li>
+            <li class="nav-item">
+              <a class="nav-link" href="{{ url_for('login') }}">Login</a>
+            </li>
+          {% endif %}
+
           <li class="nav-item dropdown">
             <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">
               Tools
@@ -38,8 +60,9 @@
             <a class="nav-link disabled">Disabled</a>
           </li> -->
         </ul>
-        <form class="d-flex" role="search">
-          <input class="form-control me-2" type="search" placeholder="Search" aria-label="Search">
+        <form method="POST" action="{{url_for('search')}}" class="d-flex" role="search">
+          {{ form.hidden_tag() }}
+          <input class="form-control me-2" type="search" placeholder="Player Search" aria-label="Search", name="searched">
           <button class="btn btn-outline-success" type="submit">Search</button>
         </form>
       </div>
