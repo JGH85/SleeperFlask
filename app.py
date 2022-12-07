@@ -41,6 +41,9 @@ app.config['SQLALCHEMY_DATABASE_URI'] = f'postgresql://{DBUsername}:{DBPassword}
 UPLOAD_FOLDER = 'static/images/'
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 
+app.config['FLASK_RUN_PORT'] = 3000
+# app.config['FLASK_RUN_HOST'] = '0.0.0.0'
+
 # app.config['SQLALCHEMY_DATABASE_URI'] = f'mysql://{DBUsername}:{DBPassword}@localhost/{DBName}'
 # app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 app.config['SECRET_KEY'] = FormKey
@@ -742,7 +745,7 @@ class Comments(db.Model):
 if __name__ == '__main__':
     # db.create_all()
     # app.run(debug=True)
-    
+
     app.run(host='0.0.0.0', port=3000)
 
 
