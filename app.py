@@ -32,7 +32,8 @@ app = Flask(__name__)
 ckeditor = CKEditor(app)
 # app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///testsleeper.db'
 # postgresql://${{ PGUSER }}:${{ PGPASSWORD }}@${{ PGHOST }}:${{ PGPORT }}/${{ PGDATABASE }}
-app.config['SQLALCHEMY_DATABASE_URI'] = f'postgresql://{DBUsername}:{DBPassword}@{DBHost}:{DBPort}/{DBName}'
+# app.config['SQLALCHEMY_DATABASE_URI'] = f'postgresql://{DBUsername}:{DBPassword}@{DBHost}:{DBPort}/{DBName}'
+app.config['SQLALCHEMY_DATABASE_URI'] = 'postgresql://${{ PGUSER }}:${{ PGPASSWORD }}@${{ PGHOST }}:${{ PGPORT }}/${{ PGDATABASE }}'
 
 
 
@@ -784,8 +785,8 @@ if __name__ == '__main__':
     # db.create_all()
     # app.run(debug=True)
 
-    # app.run(host='0.0.0.0', port=3000)
-    app.run(debug=True, port=os.getenv("PORT", default=5000))
+    app.run(host='0.0.0.0', port=3000)
+    # app.run(debug=True, port=os.getenv("PORT", default=5000))
 
 
 #features to add in future:
