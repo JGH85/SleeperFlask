@@ -41,7 +41,7 @@ app.config['SQLALCHEMY_DATABASE_URI'] = f'postgresql://{DBUsername}:{DBPassword}
 UPLOAD_FOLDER = 'static/images/'
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 
-app.config['FLASK_RUN_PORT'] = 3000
+# app.config['FLASK_RUN_PORT'] = 3000
 # app.config['FLASK_RUN_HOST'] = '0.0.0.0'
 
 # app.config['SQLALCHEMY_DATABASE_URI'] = f'mysql://{DBUsername}:{DBPassword}@localhost/{DBName}'
@@ -245,6 +245,44 @@ def getPlayers():
 
         
     return render_template('load_players.html')
+
+
+@app.route('/players/update')
+def update_active_players():
+    players_url = 'https://api.sleeper.app/v1/players/nfl'
+    response = requests.get(players_url)
+    players = response.json()
+    
+    player_id_list = list(players.keys())
+    position_list = ['QB', 'WR', 'RB', 'TE', 'K']
+    added_player_count = 0
+    #add status logic
+    for id in player_id_list:  
+        if (players[id]['position'] in position_list) and (players[id]['search_rank'] != 9999999) and (players[id]['active'] == True) and (added_player_count < 5000): 
+            p = Player.query.filter_by(id=id).first()
+            if p == None:
+                p = Player()
+            p.id = players[id]['player_id']
+            p.search_full_name = players[id]['search_full_name']
+            p.search_last_name = players[id]['search_last_name']
+            p.search_first_name = players[id]['search_first_name']
+            p.full_name = players[id]['full_name']
+            p.last_name = players[id]['last_name']
+            p.first_name = players[id]['first_name']
+            p.position = players[id]['position']
+            p.status = players[id]['status']
+            p.team = players[id]['team']
+            db.session.add(p)
+            db.session.commit()
+            added_player_count += 1
+            print(f'updated player {p.full_name} with id {p.id}.')
+            # else: print(f'player {players[id]["full_name"]} already exists, no changes made.')
+        # added_player_count += 1
+    flash(f"successfully updated {added_player_count} players")
+
+        
+    return render_template('load_players.html')
+
 
 
 @app.route('/players/editsalary', methods=['GET', 'POST'])
@@ -746,7 +784,8 @@ if __name__ == '__main__':
     # db.create_all()
     # app.run(debug=True)
 
-    app.run(host='0.0.0.0', port=3000)
+    # app.run(host='0.0.0.0', port=3000)
+    app.run(debug=True, port=os.getenv("PORT", default=5000))
 
 
 #features to add in future:
