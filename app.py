@@ -13,8 +13,9 @@ from webforms import *
 from werkzeug.utils import secure_filename
 import uuid as uuid
 import os
+from dotenv import load_dotenv
 
-from config import DBName, DBPassword, DBUsername, FormKey, DBHost, DBPort
+# from config import DBName, DBPassword, DBUsername, FormKey, DBHost, DBPort
 import pandas as pd
 
 convention = {
@@ -35,8 +36,12 @@ ckeditor = CKEditor(app)
 # app.config['SQLALCHEMY_DATABASE_URI'] = f'postgresql://{DBUsername}:{DBPassword}@{DBHost}:{DBPort}/{DBName}'
 # app.config['SQLALCHEMY_DATABASE_URI'] = 'postgresql://${{ PGUSER }}:${{ PGPASSWORD }}@${{ PGHOST }}:${{ PGPORT }}/${{ PGDATABASE }}'
 
+# get environment variables: see here:https://towardsdatascience.com/the-quick-guide-to-using-environment-variables-in-python-d4ec9291619e
+load_dotenv()
+database_url = os.environ.get('DATABASE_URL')
+secret_key = os.environ.get('SECRET_KEY')
 
-app.config['SQLALCHEMY_DATABASE_URI'] = 'postgresql://postgres:OapY2gr8CZKTUhiEu3HD@containers-us-west-151.railway.app:6236/railway'
+app.config['SQLALCHEMY_DATABASE_URI'] = database_url
 
 
 
@@ -50,7 +55,8 @@ app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 
 # app.config['SQLALCHEMY_DATABASE_URI'] = f'mysql://{DBUsername}:{DBPassword}@localhost/{DBName}'
 # app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
-app.config['SECRET_KEY'] = FormKey
+app.config['SECRET_KEY'] = secret_key
+
 
 #initialize the database
 db = SQLAlchemy(app, metadata=metadata)
@@ -785,11 +791,11 @@ class Comments(db.Model):
 
 
 if __name__ == '__main__':
-    db.create_all()
+    # db.create_all()
     # app.run(debug=True)
 
     app.run(host='0.0.0.0', port=3000)
-    # app.run(debug=True, port=os.getenv("PORT", default=5000))
+    # app.run(debug=True, port=os.getenv("PORT", default=3000))
 
 
 #features to add in future:
