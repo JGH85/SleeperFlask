@@ -231,7 +231,7 @@ def getPlayers():
     added_player_count = 0
     #add status logic
     for id in player_id_list:  
-        if (players[id]['position'] in position_list) and (players[id]['search_rank'] != 9999999) and (players[id]['active'] == True) and (added_player_count < 50): 
+        if (players[id]['position'] in position_list) and (players[id]['search_rank'] != 9999999) and (players[id]['active'] == True) and (added_player_count < 5000): 
             player_to_update = Player.query.filter_by(id=id).first()
             if player_to_update == None:
                 p = Player()
