@@ -36,7 +36,7 @@ ckeditor = CKEditor(app)
 # app.config['SQLALCHEMY_DATABASE_URI'] = 'postgresql://${{ PGUSER }}:${{ PGPASSWORD }}@${{ PGHOST }}:${{ PGPORT }}/${{ PGDATABASE }}'
 
 
-# app.config['SQLALCHEMY_DATABASE_URI'] = '${{ DATABASE_URL }}'
+app.config['SQLALCHEMY_DATABASE_URI'] = 'postgresql://postgres:OapY2gr8CZKTUhiEu3HD@containers-us-west-151.railway.app:6236/railway'
 
 
 
@@ -785,7 +785,7 @@ class Comments(db.Model):
 
 
 if __name__ == '__main__':
-    # db.create_all()
+    db.create_all()
     # app.run(debug=True)
 
     app.run(host='0.0.0.0', port=3000)
