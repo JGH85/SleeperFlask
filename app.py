@@ -160,7 +160,7 @@ def add_user():
 @login_required
 def delete_user(id):
     # Check logged in id vs. id to delete
-    if id == current_user.id:
+    if id == current_user.id or id in admin_user_list:
         user_to_delete = Users.query.get_or_404(id)
         name = None
         form = UserForm()
@@ -488,7 +488,7 @@ def edit_post(id):
 def delete_post(id):
     post = Posts.query.get_or_404(id)
     id = current_user.id
-    if id == post.poster.id:
+    if id == post.poster.id or id in admin_user_list:
         try:
             db.session.delete(post)
             db.session.commit()
