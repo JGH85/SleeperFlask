@@ -9,11 +9,13 @@ from flask_login import UserMixin, login_user, LoginManager, login_required, log
 import json
 from sqlalchemy import MetaData
 from flask_ckeditor import CKEditor
-from webforms import *
+from webforms import PostForm, PasswordForm, UserForm, LoginForm, ForgotPasswordForm, ResetPasswordForm, PlayerForm, PlayerRosterForm, SearchForm
 from werkzeug.utils import secure_filename
 import uuid as uuid
 import os
 from dotenv import load_dotenv
+import smtplib
+from itsdangerous import TimedJSONWebSignatureSerializer as Serializer
 
 # from config import DBName, DBPassword, DBUsername, FormKey, DBHost, DBPort
 import pandas as pd
@@ -43,6 +45,8 @@ secret_key = os.environ.get('SECRET_KEY')
 host = os.environ.get('HOST')
 port = os.environ.get('PORT')
 debug = os.environ.get('DEBUG')
+gmail_pwd = os.environ.get('GMAILPWD')
+gmail_address = os.environ.get('GMAIL_ADDRESS')
 
 app.config['SQLALCHEMY_DATABASE_URI'] = database_url
 
@@ -536,6 +540,79 @@ def login():
 
 	return render_template('login.html', form=form)
 
+def send_reset_email(user):
+    token = user.get_reset_token()
+    message = f'''
+Password Reset
+
+You requested a password reset. Visit the following link to complete the reset. The link will expire after 1 hour. 
+{url_for('reset_password', token=token, _external=True)}
+'''
+    server = smtplib.SMTP("smtp.gmail.com", 587)
+    server.starttls()
+    server.login(gmail_address, gmail_pwd)
+    server.sendmail(gmail_address, user.email, message)
+
+
+
+@app.route('/forgot_password', methods=['GET', 'POST'])
+def forgot_password():
+    form = ForgotPasswordForm()
+    email = form.email.data
+    message = "This is an automated test message from the Troy Siade Dynasty Football League."
+    print(email)
+    if form.validate_on_submit():
+        user = Users.query.filter_by(email = email).first()
+
+        # server = smtplib.SMTP("smtp.gmail.com", 587)
+        # server.starttls()
+        # print(gmail_pwd)
+        # server.login('sleepersalarytracker@gmail.com', gmail_pwd)
+        # server.sendmail('sleepersalarytracker@gmail.com', email, message)
+        send_reset_email(user)
+        flash("Reset email sent")
+
+        return redirect(url_for('login'))
+    else:
+        return render_template('forgot_password.html', form=form)
+
+@app.route('/reset_password/<string:token>', methods=['GET', 'POST'])
+def reset_password(token):
+    print("we made it back here!")
+    user = Users.verify_reset_token(token)
+    if not user:
+        flash("Reset token invalid or expired", 'warning')
+        return redirect(url_for('forgot_password'))
+    form = ResetPasswordForm()
+    if form.validate_on_submit():
+        ## Hash the password!!!
+        hashed_pw = generate_password_hash(form.password_hash.data, "sha256")
+        user.password_hash = hashed_pw
+        db.session.commit()
+        flash("Password successfully updated!")
+        return redirect(url_for('login'))
+    return render_template('reset_password.html', form=form)
+
+
+
+
+    form = ForgotPasswordForm()
+    email = form.email.data
+    message = "This is an automated test message from the Troy Siade Dynasty Football League."
+
+    if form.validate_on_submit():
+        server = smtplib.SMTP("smtp.gmail.com", 587)
+        server.starttls()
+        print(gmail_pwd)
+        server.login('sleepersalarytracker@gmail.com', gmail_pwd)
+        server.sendmail('sleepersalarytracker@gmail.com', email, message)
+
+        flash("Test email sent")
+        return redirect(url_for('login'))
+    else:
+        return render_template('forgot_password.html', form=form)
+
+
 @app.route('/logout', methods=['GET', 'POST'])
 @login_required
 def logout():
@@ -631,61 +708,62 @@ def search():
 
 
 class Users(db.Model, UserMixin):
-	id = db.Column(db.Integer, primary_key=True)
-	username = db.Column(db.String(20), nullable=False, unique=True)
-	name = db.Column(db.String(200), nullable=False)
-	email = db.Column(db.String(120), nullable=False, unique=True)
-	teamname = db.Column(db.String(40))
-	# about_author = db.Column(db.Text(), nullable=True)
-	date_added = db.Column(db.DateTime, default=datetime.utcnow)
-	profile_pic = db.Column(db.String(), nullable=True)
-	# User Can Have Many Posts 
-	posts = db.relationship('Posts', backref='poster')
+    id = db.Column(db.Integer, primary_key=True)
+    username = db.Column(db.String(20), nullable=False, unique=True)
+    name = db.Column(db.String(200), nullable=False)
+    email = db.Column(db.String(120), nullable=False, unique=True)
+    teamname = db.Column(db.String(40))
+    # about_author = db.Column(db.Text(), nullable=True)
+    date_added = db.Column(db.DateTime, default=datetime.utcnow)
+    profile_pic = db.Column(db.String(), nullable=True)
+    # User Can Have Many Posts 
+    posts = db.relationship('Posts', backref='poster')
 
-	# Do some password stuff!
-	password_hash = db.Column(db.String(128))
+    # Do some password stuff!
+    password_hash = db.Column(db.String(128))
 
-	# Create A String
-	def __repr__(self):
-		return '<Name %r>' % self.name
+    # Create A String
+    def __repr__(self):
+        return '<Name %r>' % self.name
 
-	@property
-	def password(self):
-		raise AttributeError('password is not a readable attribute!')
+    @property
+    def password(self):
+        raise AttributeError('password is not a readable attribute!')
 
-	@password.setter
-	def password(self, password):
-		self.password_hash = generate_password_hash(password)
+    @password.setter
+    def password(self, password):
+        self.password_hash = generate_password_hash(password)
 
-	def verify_password(self, password):
-		return check_password_hash(self.password_hash, password)
+    def verify_password(self, password):
+        return check_password_hash(self.password_hash, password)
 
-# class Users(db.Model, UserMixin):
-# 	id = db.Column(db.Integer, primary_key=True)
-# 	username = db.Column(db.String(20), nullable=False, unique=True)
-# 	name = db.Column(db.String(200), nullable=False)
-# 	email = db.Column(db.String(120), nullable=False, unique=True)
-# 	favorite_color = db.Column(db.String(120))
-# 	about_author = db.Column(db.Text(), nullable=True)
-# 	date_added = db.Column(db.DateTime, default=datetime.utcnow)
-# 	profile_pic = db.Column(db.String(), nullable=True)
+    # def get_reset_token(self, seconds = '3600'):
+    #     s = Serializer(secret_key, seconds)
+    #     return s.dumps({'user_id':str(self.id)}).decode('utf-8')
 
-# 	# Do some password stuff!
-# 	password_hash = db.Column(db.String(128))
-# 	# User Can Have Many Posts 
-# 	posts = db.relationship('Posts', backref='poster')
+    # @staticmethod
+    # def verify_reset_token(token):
+    #     s = Serializer(secret_key)
+    #     try:
+    #         user_id = s.loads(token)['user_id']
+    #     except:
+    #         return None
+    #     return Users.query.get(user_id)
 
+    def get_reset_token(self):
+        s = Serializer(secret_key, expires_in = 3600)
+        return s.dumps({'user_id':self.id}).decode('utf-8')
 
-# 	@property
-# 	def password(self):
-# 		raise AttributeError('password is not a readable attribute!')
-
-# 	@password.setter
-# 	def password(self, password):
-# 		self.password_hash = generate_password_hash(password)
-
-# 	def verify_password(self, password):
-# 		return check_password_hash(self.password_hash, password)
+    @staticmethod
+    def verify_reset_token(token):
+        print("still good")
+        s = Serializer(secret_key)
+        print("no issues")
+        try:
+            user_id = s.loads(token)['user_id']
+        except:
+            return None
+        return Users.query.get(user_id)
 
 class Posts(db.Model):
     id = db.Column(db.Integer, primary_key = True)
@@ -710,6 +788,9 @@ class Player(db.Model):
     position = db.Column(db.String(20))
     status = db.Column(db.String(50))
     team = db.Column(db.String(20))
+    # player can have many roster rows 
+    roster_players = db.relationship('RosterPlayer', backref='player')
+    caphold_players = db.relationship('CapHold', backref='player')
 
 # rosters = db.relationship('Roster', backref='player', lazy=True)
 # date_added
@@ -719,6 +800,9 @@ class Team(db.Model):
     id = db.Column(db.Integer, primary_key = True)
     team_name = db.Column(db.String(60))
     owner_id = db.Column(db.Integer)
+    # team has many roster players 
+    roster_players = db.relationship('RosterPlayer', backref='team')
+    capholds = db.relationship('CapHold', backref='team')
 
     # last_name = db.Column(db.String(20))
     # first_name = db.Column(db.String(20))
@@ -727,7 +811,7 @@ class Team(db.Model):
     # search_first_name = db.Column(db.String(20))
     # position = db.Column(db.String(20))
 
-class Roster(db.Model):
+class RosterPlayer(db.Model):
     id = db.Column(db.Integer, primary_key = True)
     team_id = db.Column(db.Integer)
     
@@ -737,13 +821,17 @@ class Roster(db.Model):
     date_added = db.Column(db.DateTime)
     date_removed = db.Column(db.DateTime)
     date_updated = db.Column(db.DateTime)
+    player_id = db.Column(db.Integer, db.ForeignKey('player.id'))
+    team_id = db.Column(db.Integer, db.ForeignKey('team.id'))
+
 
 # player_id = db.Column(db.Integer, db.ForeignKey('player.id'), nullable=False)
 
 class CapHold(db.Model):
     id = db.Column(db.Integer, primary_key = True)
-    team_id = db.Column(db.Integer)
-    player_id = db.Column(db.Integer)
+    team_id = db.Column(db.Integer, db.ForeignKey('team.id'))
+    player_id = db.Column(db.Integer, db.ForeignKey('player.id'))
+
     season = db.Column(db.Integer)
     caphold = db.Column(db.Numeric)
     reason = db.Column(db.String(20))
@@ -794,7 +882,7 @@ class Comments(db.Model):
 
 
 if __name__ == '__main__':
-    # db.create_all()
+    db.create_all()
     # app.run(debug=True)
 
     # app.run(host='0.0.0.0', port=3000)
