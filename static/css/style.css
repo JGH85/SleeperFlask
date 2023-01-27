@@ -1,17 +1,24 @@
 body {
     background: #f4f4f4;
+    font-family: 'Libre Baskerville';
+    /* font-weight: 100; */
+}
+
+/* * {
+    font-family: Roboto;
+    font-weight: 200;
+
+} */
+
+li {
+    font-family: 'Roboto';
+    font-weight: 100;
 }
 
 h1 {
     color: darkblue;
-    font-family: 'Libre Baskerville';
+    font-family: 'Playfair Display';
     font-size: 30;
-}
-
-h2 {
-    color: darkblue;
-    font-family: 'Libre Baskerville';
-    font-size: 18;
 }
 
 #demo {
@@ -19,3 +26,29 @@ h2 {
     color: navy;
     font-size: 10;
 }
+
+/* .mytesttable {
+    font-family: 'Times New Roman', Times, serif 
+} */
+
+/* .table-dark {
+    font-family: 'Playfair Display';
+} */
+
+.table {
+    font-family: 'Libre Baskerville';
+}
+
+.used_cap {
+    color: red;
+    margin-bottom: 1px;
+}
+
+.cap_space {
+    color: darkblue;
+}
+
+
+/* #playernotes{
+
+} */

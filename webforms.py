@@ -1,6 +1,6 @@
 from flask_wtf import FlaskForm
 from flask_wtf.file import FileField
-from wtforms import StringField, SubmitField, PasswordField, BooleanField, ValidationError
+from wtforms import StringField, SubmitField, PasswordField, BooleanField, ValidationError, SelectField
 from wtforms.validators import DataRequired, EqualTo, Length, Email, ValidationError
 from wtforms.widgets import TextArea
 from flask_ckeditor import CKEditorField
@@ -44,6 +44,10 @@ class UserForm(FlaskForm):
     #     if user:
     #         raise ValidationError('That email is taken. Please choose a different one.')
 
+class OwnerForm(FlaskForm):
+    displayname = StringField("Owner", validators=[DataRequired()])
+    user = SelectField("User", choices = [])
+    submit = SubmitField("Submit")
 
 class LoginForm(FlaskForm):
 	username = StringField("Username", validators=[DataRequired()])
@@ -56,10 +60,10 @@ class ForgotPasswordForm(FlaskForm):
 
     submit = SubmitField("Submit")
 
-    def validate_email(self, email):
-        user = Users.query.filter_by(email=email.data).first()
-        if user is None:
-            raise ValidationError('There is no account with that email. You must register first.')
+    # def validate_email(self, email):
+    #     user = Users.query.filter_by(email=email.data).first()
+    #     if user is None:
+    #         raise ValidationError('There is no account with that email. You must register first.')
 
 class ResetPasswordForm(FlaskForm):
     password_hash = PasswordField('Password', validators = [DataRequired(), EqualTo('password_hash2', "Passwords must match.")])

@@ -39,16 +39,33 @@
 
           <li class="nav-item dropdown">
             <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+              Teams
+            </a>
+            <ul class="dropdown-menu">
+              <li><a class="dropdown-item" href="{{ url_for('view_rosters') }}">All Teams</a></li>
+            
+              <li><hr class="dropdown-divider"></li>
+
+              {% for t in dropdown_teams%}
+              <li><a class="dropdown-item" href="{{ url_for('view_roster', id=t.id)}}">{{t.owner.teamname}}</a></li>
+              {% endfor %}
+            </ul>
+          </li>
+
+          <li class="nav-item dropdown">
+            <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">
               Tools
             </a>
             <ul class="dropdown-menu">
               <li><a class="dropdown-item" href="{{ url_for('add_post') }}">Add League Message</a></li>
               <li><a class="dropdown-item" href="{{ url_for('posts') }}">Message Board</a></li>
-
+              <li><a class="dropdown-item" href="{{ url_for('view_rosters') }}">Teams</a></li>
+              <li><a class="dropdown-item" href="{{ url_for('update_roster_players') }}">Update Roster Players</a></li>
 
               
               <li><hr class="dropdown-divider"></li>
               <li><a class="dropdown-item" href="{{ url_for('add_user') }}">Users</a></li>
+              <li><a class="dropdown-item" href="{{ url_for('update_owners') }}">Update Owners</a></li>
 
             </ul>
           </li>
@@ -61,13 +78,16 @@
               <li><a class="dropdown-item" href="{{ url_for('admin') }}" style="color:red">Admin Home</a></li>
 
               <li><a class="dropdown-item" href="{{ url_for('getNFLState') }}">NFL State</a></li>
-              <li><a class="dropdown-item" href="{{ url_for('getOwners') }}">Owners</a></li>
+              <li><a class="dropdown-item" href="{{ url_for('update_owners') }}">Owners</a></li>
               
               <li><hr class="dropdown-divider"></li>
               <li><a class="dropdown-item" href="{{ url_for('editSalary') }}">Edit Salaries</a></li>
               <li><a class="dropdown-item" href="{{ url_for('getPlayers') }}">Add New Players</a></li>
               <li><a class="dropdown-item" href="{{ url_for('update_active_players') }}">Update All Players</a></li>
               <li><a class="dropdown-item" href="{{ url_for('add_user') }}">Users</a></li>
+              <li><a class="dropdown-item" href="{{ url_for('add_rosters') }}">Rosters</a></li>
+              <li><a class="dropdown-item" href="{{ url_for('process_transactions') }}">Process Transactions</a></li>
+              <li><a class="dropdown-item" href="{{ url_for('load_initial_rosters_from_csv') }}" style="color:red">Initial CSV Load Transactions</a></li>
 
             </ul>
           </li>

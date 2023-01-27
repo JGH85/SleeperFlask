@@ -9,13 +9,15 @@ from flask_login import UserMixin, login_user, LoginManager, login_required, log
 import json
 from sqlalchemy import MetaData
 from flask_ckeditor import CKEditor
-from webforms import PostForm, PasswordForm, UserForm, LoginForm, ForgotPasswordForm, ResetPasswordForm, PlayerForm, PlayerRosterForm, SearchForm
+from webforms import PostForm, PasswordForm, UserForm, LoginForm, ForgotPasswordForm, ResetPasswordForm, PlayerForm, PlayerRosterForm, SearchForm, OwnerForm
 from werkzeug.utils import secure_filename
 import uuid as uuid
 import os
 from dotenv import load_dotenv
 import smtplib
 from itsdangerous import TimedJSONWebSignatureSerializer as Serializer
+import csv
+from decimal import Decimal
 
 # from config import DBName, DBPassword, DBUsername, FormKey, DBHost, DBPort
 import pandas as pd
@@ -99,9 +101,10 @@ LeagueId = "859990766557179904"
 #setup urls for API calls
 user_url = f'https://api.sleeper.app/v1/user/{UserId}'
 league_users_url = f'https://api.sleeper.app/v1/league/{LeagueId}/users'
-# transactions_url = f'https://api.sleeper.app/v1/league/{LeagueId}/transactions/{Week}'
-# rosters_url = f'https://api.sleeper.app/v1/league/{LeagueId}/rosters'
+rosters_url = f'https://api.sleeper.app/v1/league/{LeagueId}/rosters'
 # players_url = 'https://api.sleeper.app/v1/players/nfl'
+current_season = 2022
+caphold_multiplier = Decimal("0.3")
 
 
 @app.route('/user/update/<int:id>', methods = ['GET', 'POST'])
@@ -112,7 +115,7 @@ def update_user(id):
     if request.method == "POST":
         name_to_update.name = request.form['name']
         name_to_update.email = request.form['email']
-        name_to_update.teamname = request.form['teamname']
+        # name_to_update.teamname = request.form['teamname']
         name_to_update.username = request.form['username']
         try:
             db.session.commit()
@@ -143,14 +146,14 @@ def add_user():
 		if user is None:
 			## Hash the password!!!
 			hashed_pw = generate_password_hash(form.password_hash.data, "sha256")
-			user = Users(name=form.name.data, username=form.username.data,email=form.email.data, teamname = form.teamname.data, password_hash = hashed_pw)
+			user = Users(name=form.name.data, username=form.username.data,email=form.email.data, password_hash = hashed_pw)
 			db.session.add(user)
 			db.session.commit()
 		name = form.name.data
 		form.name.data = ''
 		form.username.data = ''
 		form.email.data = ''
-		form.teamname.data = ''
+		# form.teamname.data = ''
 		form.password_hash.data = ''
 
 		flash("User Added Successfully!")
@@ -191,25 +194,25 @@ def delete_user(id):
 
 
 
-# add code to call sleeper API
-@app.route('/owners')
-def getOwners():
-    response = requests.get(league_users_url)
-    league = response.json()
-    league_df = pd.DataFrame(league)
+# # add code to call sleeper API
+# @app.route('/owners')
+# def getOwners():
+#     response = requests.get(league_users_url)
+#     league = response.json()
+#     league_df = pd.DataFrame(league)
 
-    #convert metadata column to separate columns
-    league_metadata = pd.json_normalize(league_df['metadata'])
+#     #convert metadata column to separate columns
+#     league_metadata = pd.json_normalize(league_df['metadata'])
 
-    #concatenate metadata columns to league data
-    league_df = pd.concat([league_df, league_metadata], axis=1)
+#     #concatenate metadata columns to league data
+#     league_df = pd.concat([league_df, league_metadata], axis=1)
 
-    #fill team name based on username if missing
-    league_df['team_name'] = league_df['team_name'].fillna(league_df['display_name'])
+#     #fill team name based on username if missing
+#     league_df['team_name'] = league_df['team_name'].fillna(league_df['display_name'])
 
-    league = league_df.to_html()
+#     league = league_df.to_html()
         
-    return render_template('owners.html', league=league)
+#     return render_template('owners.html', league=league)
 
 @app.route('/update/<int:id>', methods = ['GET', 'POST'])
 def updatePlayer(id):
@@ -238,7 +241,9 @@ def getPlayers():
     added_player_count = 0
     #add status logic
     for id in player_id_list:  
-        if (players[id]['position'] in position_list) and (players[id]['search_rank'] != 9999999) and (players[id]['active'] == True) and (added_player_count < 5000): 
+        # if (players[id]['position'] in position_list) and (players[id]['search_rank'] != 9999999) and (players[id]['active'] == True) and (added_player_count < 5000): 
+        if (players[id]['position'] in position_list) and (players[id]['active'] == True) and (added_player_count < 5000): 
+
             player_to_update = Player.query.filter_by(id=id).first()
             if player_to_update == None:
                 p = Player()
@@ -300,8 +305,294 @@ def update_active_players():
         
     return render_template('load_players.html')
 
+@app.route('/owners/update')
+def update_owners():
+    response = requests.get(league_users_url)
+    league = response.json()
+    updated_owner_count = 0
+
+    for i in league:
+        id = i['user_id']
+        display_name = i['display_name']
+        team_name = ''
+        avatar = ''
+        try:
+            avatar = i['metadata']['avatar']
+        except KeyError:
+            pass
+        try:
+            team_name = i['metadata']['team_name']
+        except:
+            team_name = display_name
+
+        owner = Owners.query.filter_by(id=id).first()
+        if owner == None:
+            owner = Owners()
+            owner.id = id
+            owner.display_name = display_name
+            owner.teamname = team_name
+            owner.avatar = avatar
+            owner.user_id = None
+            db.session.add(owner)
+            print(f'added owner {owner.display_name} with id {owner.id}.')
+        else:
+            owner.display_name = display_name
+            owner.teamname = team_name
+            owner.avatar = avatar
+            owner.date_updated = datetime.utcnow()
+            print(f'updated owner {owner.display_name} with id {owner.id}.')
+        db.session.commit()
+        updated_owner_count += 1
+    
+    flash(f"successfully updated {updated_owner_count} owners")        
+    owners = Owners.query.order_by(Owners.id)  
+
+    return render_template('owners.html', owners = owners)
+
+    # return render_template('load_from_api.html', load_object = "Owners")
+
+@app.route('/owners/edit/<string:id>', methods=['GET', 'POST'])
+@login_required
+def edit_owner(id):
+    owner = Owners.query.get_or_404(id)
+    print(owner.display_name)
+    form = OwnerForm()
+    if request.method == "POST":
+            owner.user_id = form.user.data
+            print(f"user:{form.user.data}")
+            # Update Database
+            # db.session.add(owner)
+            db.session.commit()
+            flash("Owner Has Been Updated!")
+            # return redirect(url_for('edit_owner', id=owner.id))
+            return redirect("/")
+
+    if current_user.id  in admin_user_list:    
+        form.displayname.data = owner.display_name
+        form.user.choices = [(user.id, user.username) for user in Users.query.order_by(Users.id)]
+        return render_template('edit_owner.html', form=form)
+    else:
+        flash("You don't have authority to edit users")
+        return redirect(url_for('/'))
 
 
+@app.route('/rosters/add')
+def add_rosters():
+    response = requests.get(rosters_url)
+    rosters = response.json()
+    updated_roster_count = 0
+    for r in rosters:
+        owner_id = r['owner_id']
+        roster_id = r['roster_id']
+        t = Team.query.filter_by(id=roster_id).first()
+        if t == None:
+            t = Team()
+            t.id = roster_id
+        t.owner_id = owner_id
+        db.session.add(t)
+        db.session.commit()
+        updated_roster_count += 1
+    flash(f"Added {updated_roster_count} teams")
+    return redirect("/")
+
+
+@app.route('/rosters/')
+def view_rosters():
+    teams = Team.query.order_by(Team.id).all()
+    print(teams)
+    # my_list = teams.tolist()
+    # print(my_list)
+
+    for t in teams:
+        team_roster = RosterPlayer.query.filter(RosterPlayer.team_id == t.id, RosterPlayer.date_removed.is_(None)).order_by(RosterPlayer.salary.desc())
+        capholds = CapHold.query.filter(CapHold.team_id == t.id, CapHold.season == current_season).order_by(CapHold.caphold.desc())
+
+        active_roster_salary = 0
+        total_cap_holds = 0
+
+        for r in team_roster:
+            if not r.is_ir:
+                active_roster_salary += r.salary
+        for c in capholds:
+            total_cap_holds += c.caphold  
+        used_cap = active_roster_salary + total_cap_holds
+        cap_space = 200 - used_cap
+        t.cap_space = cap_space
+        t.used_cap = used_cap
+        t.active_roster_salary = active_roster_salary
+        t.cap_holds = total_cap_holds
+
+
+    return render_template('teams.html', teams=teams)
+
+@app.route('/rosters/<int:id>')
+def view_roster(id):
+    team = Team.query.filter_by(id = id).first()
+    # team_roster = RosterPlayer.query.filter_by(team_id = id).order_by(RosterPlayer.salary.desc())
+    team_roster = RosterPlayer.query.filter(RosterPlayer.team_id == id, RosterPlayer.date_removed.is_(None)).order_by(RosterPlayer.salary.desc())
+    capholds = CapHold.query.filter(CapHold.team_id == id, CapHold.season == current_season).order_by(CapHold.caphold.desc())
+
+    active_roster_salary = 0
+    total_cap_holds = 0
+
+    for t in team_roster:
+        if not t.is_ir:
+            active_roster_salary += t.salary
+        print(f'after {t.player.full_name}, active_roster_salary:{active_roster_salary}')
+    for c in capholds:
+        total_cap_holds += c.caphold  
+    used_cap = active_roster_salary + total_cap_holds
+    cap_space = 200 - used_cap
+
+
+    return render_template('team_roster.html', 
+        team=team, 
+        team_roster = team_roster, 
+        capholds = capholds, 
+        active_roster_salary = active_roster_salary, 
+        total_cap_holds = total_cap_holds, 
+        used_cap = used_cap, 
+        cap_space = cap_space        
+        )
+
+@app.route('/rosterplayers/')
+def view_roster_players():
+    all_roster_players = RosterPlayer.query.filter(RosterPlayer.date_removed == None).order_by(RosterPlayer.salary.desc())
+    return render_template('roster_players.html', roster_players = all_roster_players)
+
+# @app.route('/rosters/<int:id>')
+# def view_roster_history(id):
+#     team = Team.query.filter_by(id = id).first()
+#     team_roster = RosterPlayer.query.filter_by(team_id = id).all()
+#     return render_template('team_roster.html', team=team, team_roster = team_roster)
+
+@app.route('/rosterplayers/')
+def update_roster_players():
+    response = requests.get(rosters_url)
+    rosters = response.json()
+    updated_player_count = 0
+    for r in rosters:
+        # team_id = r['owner_id']
+        team_id = r['roster_id']
+        for playerid in r['players']:
+            # check if player exists in Database
+            playerindb = Player.query.filter_by(id = playerid).first()
+            if playerindb == None:
+                print(f"player id {playerid} not found")
+            else:
+                #check if it already exists first
+                rp = RosterPlayer.query.filter_by(player_id = playerid).first()
+                if rp == None:                    
+                    player = RosterPlayer()
+                    player.player_id = playerid
+                    player.team_id = team_id
+                    player.season = current_season
+                    player.salary = 0
+                    player.date_added = "2022-10-01"
+                    player.date_updated = datetime.utcnow()
+                    player.is_Franchised = False
+                    db.session.add(player)
+                    db.session.commit()
+                    updated_player_count += 1
+                #TODO: If player exists, update IR status
+    flash(f"Added {updated_player_count} players")
+    return redirect("/")
+    
+
+@app.route('/rosterplayers/csvload')
+def load_initial_rosters_from_csv():
+    with open('initial_rosters_with_salary_for_import.csv') as csv_file:
+        csv_reader = csv.reader(csv_file, delimiter=",")
+        line_count = 0
+        for row in csv_reader:
+            if line_count == 0:
+                print(f'Column names are {", ".join(row)}')
+                line_count += 1
+            else:
+                print(f'\t player_id:{row[0]}, roster_id:{row[1]}, owner_id:{row[2]}, player:{row[5]}, salary:{row[6]}, unadjusted_salary:{row[7]}, is_Franchised:{row[8]}, is_ir:{row[9]}')
+                line_count += 1
+                rp = RosterPlayer()
+                rp.team_id = row[1]
+                rp.player_id = row[0]
+                rp.season = current_season
+                rp.salary = row[6]
+                if row[7]:
+                    rp.unadjusted_salary = row[7]
+                if row[8]:
+                    rp.is_franchised = True
+                else:
+                    rp.is_franchised = False
+                if row[9]:
+                    rp.is_ir = True
+                else:
+                    rp.is_ir = False
+                rp.date_added = "2022-09-01"
+                db.session.add(rp)
+                db.session.commit()
+
+
+        print(f'Processed {line_count} lines.')
+    
+    # for r in rosters:
+    #     # team_id = r['owner_id']
+    #     team_id = r['roster_id']
+    #     for playerid in r['players']:
+    #         # check if player exists in Database
+    #         playerindb = Player.query.filter_by(id = playerid).first()
+    #         if playerindb == None:
+    #             print(f"player id {playerid} not found")
+    #         else:
+    #             # eventually we should check if it already exists first
+    #             rp = RosterPlayer.query.filter_by(player_id = playerid).first()
+    #             if rp == None:                    
+    #                 player = RosterPlayer()
+    #                 player.player_id = playerid
+    #                 player.team_id = team_id
+    #                 player.season = 2022
+    #                 player.salary = 0
+    #                 player.date_added = "2022-10-01"
+    #                 player.date_updated = datetime.utcnow()
+    #                 player.is_Franchised = False
+    #                 db.session.add(player)
+    #                 db.session.commit()
+    #                 updated_player_count += 1
+    flash(f"Processed {line_count} players")
+    return redirect("/")
+
+@app.route('/roster_csv/')
+def load_roster_from_csv():
+    response = requests.get(rosters_url)
+    rosters = response.json()
+    updated_player_count = 0
+    for r in rosters:
+        # team_id = r['owner_id']
+        team_id = r['roster_id']
+        for playerid in r['players']:
+            # check if player exists in Database
+            playerindb = Player.query.filter_by(id = playerid).first()
+            if playerindb == None:
+                print(f"player id {playerid} not found")
+            else:
+                # eventually we should check if it already exists first
+                rp = RosterPlayer.query.filter_by(player_id = playerid).first()
+                if rp == None:                    
+                    player = RosterPlayer()
+                    player.player_id = playerid
+                    player.team_id = team_id
+                    player.season = current_season
+                    player.salary = 0
+                    player.date_added = "2022-10-01"
+                    player.date_updated = datetime.utcnow()
+                    player.is_franchised = False
+                    db.session.add(player)
+                    db.session.commit()
+                    updated_player_count += 1
+    flash(f"Added {updated_player_count} players")
+    return redirect("/")
+
+
+
+        
 @app.route('/players/editsalary', methods=['GET', 'POST'])
 def editSalary():
     form = PlayerRosterForm()
@@ -371,10 +662,6 @@ def get_player_info_limit(limit):
         }
         my_dict[player.id] = player_dict
     return my_dict
-
-
-
-
 
 
 
@@ -594,25 +881,6 @@ def reset_password(token):
     return render_template('reset_password.html', form=form)
 
 
-
-
-    form = ForgotPasswordForm()
-    email = form.email.data
-    message = "This is an automated test message from the Troy Siade Dynasty Football League."
-
-    if form.validate_on_submit():
-        server = smtplib.SMTP("smtp.gmail.com", 587)
-        server.starttls()
-        print(gmail_pwd)
-        server.login('sleepersalarytracker@gmail.com', gmail_pwd)
-        server.sendmail('sleepersalarytracker@gmail.com', email, message)
-
-        flash("Test email sent")
-        return redirect(url_for('login'))
-    else:
-        return render_template('forgot_password.html', form=form)
-
-
 @app.route('/logout', methods=['GET', 'POST'])
 @login_required
 def logout():
@@ -630,7 +898,7 @@ def dashboard():
     if request.method == "POST":
         name_to_update.name = request.form['name']
         name_to_update.email = request.form['email']
-        name_to_update.teamname = request.form['teamname']
+        # name_to_update.teamname = request.form['teamname']
         name_to_update.username = request.form['username']
         # name_to_update.about_author = request.form['about_author']
         # name_to_update.profile_pic = request.files['profile_pic']
@@ -681,7 +949,9 @@ def base():
     form = SearchForm()
     #pass in admin user list
     alist = admin_user_list
-    return dict(form=form, alist=alist)
+    # TODO: Add teams for dropdown 
+    teams = Team.query.order_by(Team.id)
+    return dict(form=form, alist=alist, dropdown_teams = teams)
 
 
 #search function
@@ -701,6 +971,315 @@ def search():
         return render_template("search_results.html", form=form, searched = searched, players = players)
 
 
+@app.route('/transactions/')
+def process_transactions():
+    nfl_state_url = f'https://api.sleeper.app/v1/state/{Sport}'
+    nfl_state = requests.get(nfl_state_url).json()
+    week = int(nfl_state['leg']) #we may need to use week here instead, need to test in the regular season
+    # print(type(week))
+    # print(week)
+    
+    missing_player_ids = []
+
+    for i in range(week):
+        transaction_dates_list = []
+        transaction_date_id_dict = {}
+        transaction_week = i + 1
+        print(f'week {transaction_week} transactions-------------------------------------------------------------------------')
+
+        transactions_url = f'https://api.sleeper.app/v1/league/{LeagueId}/transactions/{transaction_week}'
+        response = requests.get(transactions_url)
+        transactions = response.json()
+        added_transaction_count = 0
+        added_roster_player_count = 0
+        added_cap_hold_count = 0
+        transaction_counter = 0
+
+        for t in transactions:
+            # transaction_status = t['status']
+            # transaction_type = t['type']
+            # roster_id = t['roster_ids'][0]
+            tid = t['transaction_id']
+            if tid == '875193377745268736' or tid == 875193377745268736:
+                print('------------------------------------------------------------------------------------------------------------------------------')
+                print('FOUND IT. TRANSACTION 875193377745268736 -------------------------------------------------------------------------------------')
+                print('------------------------------------------------------------------------------------------------------------------------------')
+            
+            transaction_dt_milli = t['status_updated']
+            
+            # increment millisecond date if needed for simultaneous transactions
+            date_already_used = True
+            while date_already_used:
+                if transaction_dt_milli in transaction_dates_list:
+                    transaction_dt_milli += 1
+                else:
+                    date_already_used = False
+            transaction_dates_list.append(transaction_dt_milli)
+            temp_list = [transaction_counter, tid]
+            transaction_date_id_dict[transaction_dt_milli] = temp_list
+            transaction_counter += 1
+
+        #we need to sort transactions by date first and then process so that they're in the right order for adds/drops in close succession
+        transaction_dates_list.sort()
+        print(f'transactions sorted by date:{transaction_dates_list}')
+        print(f'transactions dict:{transaction_date_id_dict}')
+        # if len(transaction_dates_list) > 0:
+        #     print(transaction_date_id_dict[transaction_dates_list[0]])
+        #     print(transactions[transaction_date_id_dict[transaction_dates_list[0]][0]]['transaction_id'])
+        
+        for i in transaction_dates_list:
+            t = transactions[transaction_date_id_dict[i][0]]
+            transaction_status = t['status']
+            transaction_type = t['type']
+            roster_id = t['roster_ids'][0]
+            tid = t['transaction_id']
+
+            if tid == '875193377745268736' or tid == 875193377745268736:
+                print('------------------------------------------------------------------------------------------------------------------------------')
+                print('FOUND IT. TRANSACTION 875193377745268736 -------------------------------------------------------------------------------------')
+                print('------------------------------------------------------------------------------------------------------------------------------')
+            
+            #check if we already have this transaction
+            transaction = Transactions.query.filter_by(id=tid).first()
+
+            if transaction == None: #transaction not processed previously, proceed
+                week = t['leg']
+                dropped_player_id = None
+                added_player_id = None
+                salary = 0 #default is 0
+
+                transaction_dt = pd.to_datetime(t['status_updated'], unit='ms')
+                
+                csv_load_date = pd.to_datetime("2022-09-01")
+
+
+
+                # print(f"status: {transaction_status}, type: {transaction_type}, roster_id:{roster_id}, week:{week}")
+                if transaction_status == 'complete' and transaction_dt < csv_load_date:
+                    print(f'transaction with {tid}, dt:{transaction_dt} before transaction load date')
+                if transaction_status == 'complete' and transaction_dt > csv_load_date:
+                    # print(f'transaction_datetime: {transaction_dt}')
+                    transaction_to_save = Transactions()
+                    transaction_to_save.id = tid
+                    transaction_to_save.transaction_type = transaction_type
+                    transaction_to_save.roster_id = roster_id
+                    transaction_to_save.transaction_date = transaction_dt
+                    transaction_to_save.status_updated = datetime.utcnow()
+                    db.session.add(transaction_to_save)
+                    db.session.commit()
+                    added_transaction_count += 1
+                                                           
+                
+                    # need to add logic for drops and trades
+                    #free agent = drop
+                    # trade
+
+                    #handle waiver pickups
+                    if transaction_type == 'waiver':
+                        added_player_id = list(t['adds'].keys())[0]
+                        added_player = Player.query.filter_by(id=added_player_id).first()
+                        if added_player == None:
+                            missing_player_ids.append(added_player_id)
+                        else:                                
+                            # print(t['settings'])
+                            if (t['settings'] != None):
+                                salary = t['settings']['waiver_bid']
+                                            
+                            print(f'added player id: {added_player_id}')                        
+                            #TODO:ADD CODE HERE TO ADD PLAYERS
+                            new_rp = RosterPlayer()
+                            new_rp.player_id = added_player_id
+                            new_rp.team_id = roster_id
+                            new_rp.season = current_season
+                            new_rp.salary = salary
+                            new_rp.is_Franchised = False
+                            new_rp.is_ir = False
+                            new_rp.date_added = transaction_dt
+                            new_rp.date_updated = datetime.utcnow()
+                            new_rp.open_transaction_id = tid
+                            db.session.add(new_rp)
+                            db.session.commit()
+
+                            added_roster_player_count += 1
+
+                            # print(f'salary: {salary}')
+                    if transaction_type != "trade":
+                        #for dropped players, close that roster player and add to capholds
+                        if t['drops'] != None:
+                                dropped_player_found = False
+                                dropped_player_id = list(t['drops'].keys())[0]
+                                id = 0
+                                try:
+                                    id = int(dropped_player_id)
+                                except:
+                                    print(f"dropped_player_id {dropped_player_id} not valid.") #this happens for dsts
+                                    dropped_player_id = None
+                                print(f'dropped_player_id:{dropped_player_id}, dropped_id: {id}')
+                                if id:
+                                    dropped_player = Player.query.filter_by(id=id).first()
+                                    if dropped_player != None:
+                                        print(f"Dropped player:{dropped_player.full_name}")
+                                        dropped_player_found = True
+                                    else:
+                                        dropped_player_id = None #not found in DB, don't add to transactions
+                                if dropped_player_found:
+                                    #find open rosterplayer
+                                    # rp = RosterPlayer.query.filter(RosterPlayer.team_id == roster_id, RosterPlayer.player_id == id, RosterPlayer.date_removed == None).first()
+                                    rp = RosterPlayer.query.filter(RosterPlayer.team_id == roster_id, RosterPlayer.player_id == id, RosterPlayer.date_removed.is_(None)).first()
+                                    if rp != None:
+                                        print("successfully found dropped player in roster players")
+                                        rp.date_removed = transaction_dt
+                                        rp.close_transaction_id = tid
+                                        cp = CapHold()
+                                        cp.team_id = rp.team_id
+                                        cp.player_id = rp.player_id
+                                        cp.season = current_season
+                                        if rp.salary > 0:
+                                            cp.caphold = rp.salary * caphold_multiplier
+                                        else:
+                                            cp.caphold = 0
+                                        #TODO: double check that this logic is ok for franchised players as well
+                                        cp.reason = "Dropped by owner"
+                                        cp.effective_date = transaction_dt
+                                        cp.date_updated = datetime.utcnow()
+                                        cp.associated_transaction_id = tid
+                                        db.session.add(rp)
+                                        db.session.add(cp)
+                                        db.session.commit()
+                                        print(f"added player {cp.player.full_name} to caphold with hold of {cp.caphold}----------------------------")
+
+                                        added_cap_hold_count += 1
+                                        # all_roster_players = RosterPlayer.query.filter(RosterPlayer.date_removed == None).order_by(RosterPlayer.salary.desc())
+                                
+                                #TODO: figure out why it's showing drops from AUgust    
+                                # dropped_player = getPlayerFullNameByPlayerId(dropped_player)
+                                print(f'dropped player_id: {dropped_player_id}')  
+                        if added_player_id:
+                            transaction_to_save.added_player_id = added_player_id
+                        if dropped_player_id:
+                            transaction_to_save.dropped_player_id = dropped_player_id
+                        transaction_to_save.added_salary = salary
+                        transaction_to_save.transaction_date = transaction_dt
+                        transaction_to_save.status_updated = datetime.utcnow()
+                        db.session.add(transaction_to_save)
+                        db.session.commit()
+
+                    #process trades
+                    if transaction_type == "trade":
+                        # save each part of the trade
+                        dropped_players = t['drops']
+                        added_players = t['adds']
+
+                        trade_partners_drops = {}
+                        trade_partners_adds = {}
+                        trade_adds_salaries = {}
+
+                        for i in dropped_players.keys():
+                            trade_roster_id = dropped_players[i]
+                            if trade_roster_id in trade_partners_drops:
+                                trade_partners_drops[trade_roster_id].append(i) #add to the list
+                            else:
+                                trade_partners_drops[trade_roster_id] = [i]
+                        for i in added_players.keys():
+                            trade_roster_id = added_players[i]
+                            if trade_roster_id in trade_partners_adds:
+                                trade_partners_adds[trade_roster_id].append(i)
+                            else:
+                                trade_partners_adds[trade_roster_id] = [i]
+
+                            #get salaries for adds
+                            rp = RosterPlayer.query.filter(RosterPlayer.player_id == i, RosterPlayer.date_removed.is_(None)).first()
+                            if rp != None:
+                                salary = 0
+                                if rp.is_franchised:
+                                    salary = rp.unadjusted_salary
+                                else:
+                                    salary = rp.salary
+                                trade_adds_salaries[i] = salary           
+
+                        print(f'trade_partner_drops:{trade_partners_drops}, trade_partner_adds:{trade_partners_adds}')
+                        print(f'trade_adds_salaries:{trade_adds_salaries}')
+            
+                        
+                        trade_teams = trade_partners_adds.keys()
+                        for i in trade_teams:
+                            roster_adds = []
+                            roster_drops = []
+                            if i in trade_partners_adds:
+                                roster_adds = trade_partners_adds[i]
+                            if i in trade_partners_drops:
+                                roster_drops = trade_partners_drops[i]
+                            number_of_adds = len(roster_adds)
+                            number_of_drops = len(roster_drops)
+                            number_of_transactions = number_of_adds
+                            if number_of_drops > number_of_transactions:
+                                number_of_transactions = number_of_drops
+                            # add 1 row per add/drop for that roster
+                            for x in range(number_of_transactions):
+                                trade_transaction_to_save = TradeTransaction()
+                                trade_transaction_to_save.transaction_id = tid
+                                trade_transaction_to_save.roster_id = i
+                                if number_of_adds > x:
+                                    print(f'x={x}, number_of_adds={number_of_adds}')
+                                    trade_transaction_to_save.added_player_id = roster_adds[x]
+                                if number_of_drops > x:
+                                    print(f'x={x}, number_of_drops={number_of_drops}')
+                                    trade_transaction_to_save.dropped_player_id = roster_drops[x]
+                                trade_transaction_to_save.transaction_date = transaction_dt
+                                db.session.add(trade_transaction_to_save)
+                                print(trade_transaction_to_save)
+                                db.session.commit()
+                        
+                        #drop all players in dropped players
+                        for i in dropped_players.keys():
+                            roster_id = dropped_players[i]
+                            rp = RosterPlayer.query.filter(RosterPlayer.player_id == i, RosterPlayer.team_id == roster_id, RosterPlayer.date_removed.is_(None)).first()
+                            if rp == None:
+                                e = ErrorLog()
+                                e.transaction_id = tid
+                                e.player_id = i
+                                e.error_date = datetime.utcnow()
+                                
+
+                                print(f'Could not find traded dropped player with id {i}. Verify if there was an issue. --------------------')
+                            else:
+                                rp.date_removed = transaction_dt
+                                rp.date_updated = datetime.utcnow()
+                                rp.close_transaction_id = tid
+                                db.session.add(rp)
+                                db.session.commit()
+                        #add all players in added players
+                        for i in added_players.keys():
+                            roster_id = added_players[i]
+                            rp = RosterPlayer()
+                            rp.player_id = i
+                            rp.team_id = roster_id
+                            rp.season = current_season
+                            rp.open_transaction_id = tid
+                            if i in trade_adds_salaries:
+                                rp.salary = trade_adds_salaries[i]
+                            else:
+                                print(f"couldn't find salary for id {i}")
+                            rp.date_added = transaction_dt
+                            rp.date_updated = datetime.utcnow()
+                            rp.is_franchised = False
+                            db.session.add(rp)
+                            db.session.commit()                 
+
+                        print(f'trade_teams: {trade_teams}, drops:{trade_partners_drops}, adds: {trade_partners_adds}')
+
+                            # print(f'player_Dropped_in_Trade:{i}, trade_roster_id:{dropped_players[i]}')
+
+        flash(f"Processed transactions for week {transaction_week}: added {added_transaction_count} transactions, added {added_roster_player_count} players to rosters, Moved {added_cap_hold_count} dropped players to capholds")
+
+    # flash(f"Added {added_transaction_count} transactions")
+    # flash(f"Added {added_roster_player_count} players to rosters")
+    # flash(f"Moved {added_cap_hold_count} dropped players to capholds")
+    return redirect("/")
+
+
+
+
 
 
 #all models go below here ---------------------------------------------------------
@@ -712,12 +1291,12 @@ class Users(db.Model, UserMixin):
     username = db.Column(db.String(20), nullable=False, unique=True)
     name = db.Column(db.String(200), nullable=False)
     email = db.Column(db.String(120), nullable=False, unique=True)
-    teamname = db.Column(db.String(40))
     # about_author = db.Column(db.Text(), nullable=True)
     date_added = db.Column(db.DateTime, default=datetime.utcnow)
     profile_pic = db.Column(db.String(), nullable=True)
     # User Can Have Many Posts 
     posts = db.relationship('Posts', backref='poster')
+    owner = db.relationship('Owners', backref='user')
 
     # Do some password stuff!
     password_hash = db.Column(db.String(128))
@@ -797,13 +1376,11 @@ class Player(db.Model):
 # date_updated
     
 class Team(db.Model):
-    id = db.Column(db.Integer, primary_key = True)
-    team_name = db.Column(db.String(60))
-    owner_id = db.Column(db.Integer)
+    id = db.Column(db.Integer, primary_key = True) #this is the roster_id (1-12)
     # team has many roster players 
     roster_players = db.relationship('RosterPlayer', backref='team')
     capholds = db.relationship('CapHold', backref='team')
-
+    owner_id = db.Column(db.String(20), db.ForeignKey('owners.id'))
     # last_name = db.Column(db.String(20))
     # first_name = db.Column(db.String(20))
     # search_full_name = db.Column(db.String(40))
@@ -813,16 +1390,19 @@ class Team(db.Model):
 
 class RosterPlayer(db.Model):
     id = db.Column(db.Integer, primary_key = True)
-    team_id = db.Column(db.Integer)
-    
+    player_id = db.Column(db.Integer, db.ForeignKey('player.id'))
+    team_id = db.Column(db.Integer, db.ForeignKey('team.id'))
     season = db.Column(db.Integer)
     salary = db.Column(db.Numeric)
-    is_Franchised = db.Column(db.Boolean)
+    unadjusted_salary = db.Column(db.Numeric)
+    is_franchised = db.Column(db.Boolean)
+    is_ir = db.Column(db.Boolean)
     date_added = db.Column(db.DateTime)
     date_removed = db.Column(db.DateTime)
     date_updated = db.Column(db.DateTime)
-    player_id = db.Column(db.Integer, db.ForeignKey('player.id'))
-    team_id = db.Column(db.Integer, db.ForeignKey('team.id'))
+    open_transaction_id = db.Column(db.BigInteger, db.ForeignKey('transactions.id'))
+    close_transaction_id = db.Column(db.BigInteger, db.ForeignKey('transactions.id'))
+    note = db.Column(db.String(200))
 
 
 # player_id = db.Column(db.Integer, db.ForeignKey('player.id'), nullable=False)
@@ -838,16 +1418,38 @@ class CapHold(db.Model):
     note = db.Column(db.String(200))
     effective_date = db.Column(db.DateTime) #date that the transaction occurred
     date_updated = db.Column(db.DateTime) #date that the transaction got added to DB
+    associated_transaction_id = db.Column(db.BigInteger, db.ForeignKey('transactions.id'))
 
-class TransactionFA(db.Model):
-    id = db.Column(db.Integer, primary_key = True)
+
+class Transactions(db.Model):
+    id = db.Column(db.BigInteger, primary_key = True) #this is so we can use the same ids as sleeper
     transaction_type = db.Column(db.String(20))
     roster_id = db.Column(db.Integer)
     dropped_player_id = db.Column(db.Integer)
     added_player_id = db.Column(db.Integer)
     added_salary = db.Column(db.Numeric)
-    status_updated = db.Column(db.Integer)
     transaction_date = db.Column(db.DateTime)
+    trade = db.relationship('TradeTransaction', backref='transaction')
+    # open_roster_player = db.relationship('RosterPlayer', backref='transaction')
+    # close_roster_player = db.relationship('RosterPlayer', backref='transaction')
+    caphold = db.relationship('CapHold', backref='transaction')
+
+class ErrorLog(db.Model):
+    id = db.Column(db.Integer, primary_key = True)
+    transaction_id = db.Column(db.BigInteger)
+    roster_player_id = db.Column(db.Integer)
+    player_id = db.Column(db.Integer)
+    cap_hold_id = db.Column(db.Integer)
+    roster_id = db.Column(db.Integer)
+    error_description = db.Column(db.String(20))
+    error_notes = db.Column(db.String(200))
+    error_date = db.Column(db.DateTime)
+
+
+
+
+
+
 
 # this class tracks when last data pulls occurred
 class DataUpdateLog(db.Model):
@@ -860,23 +1462,32 @@ class DataUpdateLog(db.Model):
 
 #a transaction which is a trade gets stored as multiple rows, 1 or more per team depending on number of players in trade
 class TradeTransaction(db.Model):
-    id = db.Column(db.Integer, primary_key = True)
-    transaction_id = db.Column(db.Integer) #there can be multiple rows per trade
+    id = db.Column(db.Integer, primary_key = True) 
+    transaction_id = db.Column(db.BigInteger, db.ForeignKey('transactions.id')) #there can be multiple rows per trade
     roster_id = db.Column(db.Integer)
     dropped_player_id = db.Column(db.Integer)
     added_player_id = db.Column(db.Integer)
-    status_updated = db.Column(db.Integer)
     transaction_date = db.Column(db.DateTime)
     
-
-
-
-
 
 class Comments(db.Model):
     id = db.Column(db.Integer, primary_key = True)
     name = db.Column(db.String(20))
     comment = db.Column(db.String(1000))
+
+
+class Owners(db.Model):
+    id = db.Column(db.String(20), primary_key=True)
+    display_name = db.Column(db.String(50))
+    teamname = db.Column(db.String(50))
+    date_updated = db.Column(db.DateTime, default=datetime.utcnow)
+    avatar = db.Column(db.String(), nullable=True)
+    #every active owner has a teamroster
+    team = db.relationship('Team', backref='owner')
+    user_id = db.Column(db.Integer, db.ForeignKey('users.id'))
+
+
+    
 
 
 
@@ -894,3 +1505,26 @@ if __name__ == '__main__':
 #store teamname with players 
 # update classes to use relationships
 #add custom 404 page
+
+
+
+###### flask migrate cheatsheet
+# flask db init # first time only
+# flask db migrate -m "my description"
+# flask db upgrade
+
+
+
+#TODO: Fix drops the same week as adds
+## examples: Corey Davis on Team Mallard, McKenzie and Bellinger on Knighthawks
+## Baskin Dobbins Njoku, Tee Higgins, Elliot 2x
+## redskins: josh jacobs doubled (trade before 9/1)
+## figure out why 4039 salary is null
+
+
+# reset all rosters
+# -- delete from trade_transaction
+# -- delete from cap_hold
+# -- delete from roster_player
+
+# -- delete from transactions
