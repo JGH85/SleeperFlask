@@ -395,6 +395,30 @@ def add_rosters():
     flash(f"Added {updated_roster_count} teams")
     return redirect("/")
 
+@app.route('/rosters/update_ir')
+def update_roster_ir():
+    response = requests.get(rosters_url)
+    rosters = response.json()
+    updated_roster_count = 0
+    for r in rosters:
+        roster_id = r['roster_id']
+        reserve_id = ''
+        if r['reserve'] != None:
+            reserve_id = r['reserve'][0]
+        if reserve_id:
+            p = Player.query.filter_by(id=reserve_id).first()
+            t = Team.query.filter_by(id=roster_id).first()
+            flash(f'Team:{t.owner.teamname}, IR:{p.full_name}')
+        # if t == None:
+        #     t = Team()
+        #     t.id = roster_id
+        # t.owner_id = owner_id
+        # db.session.add(t)
+        # db.session.commit()
+        # updated_roster_count += 1
+    # flash(f"Added {updated_roster_count} teams")
+    return redirect("/")
+
 
 @app.route('/rosters/')
 def view_rosters():
