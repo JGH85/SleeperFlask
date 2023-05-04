@@ -27,6 +27,10 @@
 		<!-- <th scope="col">Franchised?</th> -->
 		<th scope="col">Date Added</th>
 		<th scope="col">Date Removed</th>
+		{% if current_user.id in alist %}
+		<th scope="col"></th>
+		<th scope="col"></th>
+		{% endif %}
 
 	  </tr>
 	</thead>
@@ -53,7 +57,7 @@
 		
 		
 		</th>
-		<td>{{p.team_id}}</td>
+		<td>{{p.team.owner.teamname}}</td>
 
 		<td>{{p.season}}</td>
 		<td>{{p.salary}}</td>
@@ -72,7 +76,10 @@
 		{% else %}
 		<td></td>
 		{% endif %}
-
+		{% if current_user.id in alist %}
+		<td><a href="{{ url_for('updateRosterPlayer', id=p.id)}}">{{p.id}}</a></td>
+		<td><a href="{{ url_for('deleteRosterPlayer', id=p.id)}}">Delete</a></td>
+		{% endif %}
 	</tr>
 
 	  {% endfor %}

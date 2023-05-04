@@ -9,7 +9,7 @@ from flask_login import UserMixin, login_user, LoginManager, login_required, log
 import json
 from sqlalchemy import MetaData
 from flask_ckeditor import CKEditor
-from webforms import PostForm, PasswordForm, UserForm, LoginForm, ForgotPasswordForm, ResetPasswordForm, PlayerForm, PlayerRosterForm, SearchForm, OwnerForm
+from webforms import PostForm, PasswordForm, UserForm, LoginForm, ForgotPasswordForm, ResetPasswordForm, PlayerForm, PlayerRosterForm, SearchForm, OwnerForm, CapHoldForm
 from werkzeug.utils import secure_filename
 import uuid as uuid
 import os
@@ -230,6 +230,8 @@ def updatePlayer(id):
     else:
         return render_template('update.html', form=form, player_to_update = player_to_update)
 
+
+
 @app.route('/players/load')
 def getPlayers():
     players_url = 'https://api.sleeper.app/v1/players/nfl'
@@ -395,11 +397,20 @@ def add_rosters():
     flash(f"Added {updated_roster_count} teams")
     return redirect("/")
 
-@app.route('/rosters/update_ir')
+# @app.route('/rosters/update_ir')
 def update_roster_ir():
     response = requests.get(rosters_url)
     rosters = response.json()
     updated_roster_count = 0
+    # set all IR to false
+    old_ir_players = RosterPlayer.query.filter(RosterPlayer.is_ir == True)
+    for old_ir_player in old_ir_players:
+        print(old_ir_player.player.full_name)
+        old_ir_player.is_ir = False
+        db.session.add(old_ir_player)
+        db.session.commit()
+
+
     for r in rosters:
         roster_id = r['roster_id']
         reserve_id = ''
@@ -408,7 +419,11 @@ def update_roster_ir():
         if reserve_id:
             p = Player.query.filter_by(id=reserve_id).first()
             t = Team.query.filter_by(id=roster_id).first()
-            flash(f'Team:{t.owner.teamname}, IR:{p.full_name}')
+            # flash(f'Team:{t.owner.teamname}, IR:{p.full_name}')
+            rp = RosterPlayer.query.filter(RosterPlayer.team_id == roster_id, RosterPlayer.player_id == reserve_id, RosterPlayer.date_removed.is_(None)).first()
+            rp.is_ir = True
+            db.session.add(rp)
+            db.session.commit()
         # if t == None:
         #     t = Team()
         #     t.id = roster_id
@@ -417,7 +432,7 @@ def update_roster_ir():
         # db.session.commit()
         # updated_roster_count += 1
     # flash(f"Added {updated_roster_count} teams")
-    return redirect("/")
+    # return redirect("/")
 
 
 @app.route('/rosters/')
@@ -451,9 +466,15 @@ def view_rosters():
 
 @app.route('/rosters/<int:id>')
 def view_roster(id):
+    update_roster_ir()
     team = Team.query.filter_by(id = id).first()
     # team_roster = RosterPlayer.query.filter_by(team_id = id).order_by(RosterPlayer.salary.desc())
     team_roster = RosterPlayer.query.filter(RosterPlayer.team_id == id, RosterPlayer.date_removed.is_(None)).order_by(RosterPlayer.salary.desc())
+    roster_history = RosterPlayer.query.filter(RosterPlayer.team_id == id, RosterPlayer.date_removed.is_not(None)).order_by(RosterPlayer.salary.desc())
+
+    for rh in roster_history:
+        print(f'{rh.player.full_name}, salary:{rh.salary}, date_removed:{rh.date_removed}')
+
     capholds = CapHold.query.filter(CapHold.team_id == id, CapHold.season == current_season).order_by(CapHold.caphold.desc())
 
     active_roster_salary = 0
@@ -462,7 +483,7 @@ def view_roster(id):
     for t in team_roster:
         if not t.is_ir:
             active_roster_salary += t.salary
-        print(f'after {t.player.full_name}, active_roster_salary:{active_roster_salary}')
+        # print(f'after {t.player.full_name}, active_roster_salary:{active_roster_salary}')
     for c in capholds:
         total_cap_holds += c.caphold  
     used_cap = active_roster_salary + total_cap_holds
@@ -472,6 +493,7 @@ def view_roster(id):
     return render_template('team_roster.html', 
         team=team, 
         team_roster = team_roster, 
+        roster_history = roster_history,
         capholds = capholds, 
         active_roster_salary = active_roster_salary, 
         total_cap_holds = total_cap_holds, 
@@ -479,10 +501,18 @@ def view_roster(id):
         cap_space = cap_space        
         )
 
-@app.route('/rosterplayers/')
-def view_roster_players():
-    all_roster_players = RosterPlayer.query.filter(RosterPlayer.date_removed == None).order_by(RosterPlayer.salary.desc())
+@app.route('/rosterplayersactive/')
+def view_active_roster_players():
+    update_roster_ir()
+    active_roster_players = RosterPlayer.query.filter(RosterPlayer.date_removed == None).order_by(RosterPlayer.team_id.asc(), RosterPlayer.date_added.asc(), RosterPlayer.salary.desc())
+    return render_template('roster_players.html', roster_players = active_roster_players)
+
+@app.route('/rosterplayersall/')
+def view_all_roster_players():
+    update_roster_ir()
+    all_roster_players = RosterPlayer.query.filter().order_by(RosterPlayer.team_id.asc(), RosterPlayer.date_added.asc(), RosterPlayer.salary.desc())
     return render_template('roster_players.html', roster_players = all_roster_players)
+
 
 # @app.route('/rosters/<int:id>')
 # def view_roster_history(id):
@@ -490,133 +520,225 @@ def view_roster_players():
 #     team_roster = RosterPlayer.query.filter_by(team_id = id).all()
 #     return render_template('team_roster.html', team=team, team_roster = team_roster)
 
-@app.route('/rosterplayers/')
-def update_roster_players():
-    response = requests.get(rosters_url)
-    rosters = response.json()
-    updated_player_count = 0
-    for r in rosters:
-        # team_id = r['owner_id']
-        team_id = r['roster_id']
-        for playerid in r['players']:
-            # check if player exists in Database
-            playerindb = Player.query.filter_by(id = playerid).first()
-            if playerindb == None:
-                print(f"player id {playerid} not found")
-            else:
-                #check if it already exists first
-                rp = RosterPlayer.query.filter_by(player_id = playerid).first()
-                if rp == None:                    
-                    player = RosterPlayer()
-                    player.player_id = playerid
-                    player.team_id = team_id
-                    player.season = current_season
-                    player.salary = 0
-                    player.date_added = "2022-10-01"
-                    player.date_updated = datetime.utcnow()
-                    player.is_Franchised = False
-                    db.session.add(player)
-                    db.session.commit()
-                    updated_player_count += 1
-                #TODO: If player exists, update IR status
-    flash(f"Added {updated_player_count} players")
-    return redirect("/")
+# @app.route('/rosterplayers/')
+# def update_roster_players():
+#     response = requests.get(rosters_url)
+#     rosters = response.json()
+#     updated_player_count = 0
+#     for r in rosters:
+#         # team_id = r['owner_id']
+#         team_id = r['roster_id']
+#         for playerid in r['players']:
+#             # check if player exists in Database
+#             playerindb = Player.query.filter_by(id = playerid).first()
+#             if playerindb == None:
+#                 print(f"player id {playerid} not found")
+#             else:
+#                 #check if it already exists first
+#                 rp = RosterPlayer.query.filter_by(player_id = playerid).first()
+#                 if rp == None:                    
+#                     player = RosterPlayer()
+#                     player.player_id = playerid
+#                     player.team_id = team_id
+#                     player.season = current_season
+#                     player.salary = 0
+#                     player.date_added = "2022-10-01"
+#                     player.date_updated = datetime.utcnow()
+#                     player.is_Franchised = False
+#                     db.session.add(player)
+#                     db.session.commit()
+#                     updated_player_count += 1
+#                 #TODO: If player exists, update IR status
+#     flash(f"Added {updated_player_count} players")
+#     return redirect("/")
     
 
 @app.route('/rosterplayers/csvload')
 def load_initial_rosters_from_csv():
-    with open('initial_rosters_with_salary_for_import.csv') as csv_file:
-        csv_reader = csv.reader(csv_file, delimiter=",")
-        line_count = 0
-        for row in csv_reader:
-            if line_count == 0:
-                print(f'Column names are {", ".join(row)}')
-                line_count += 1
-            else:
-                print(f'\t player_id:{row[0]}, roster_id:{row[1]}, owner_id:{row[2]}, player:{row[5]}, salary:{row[6]}, unadjusted_salary:{row[7]}, is_Franchised:{row[8]}, is_ir:{row[9]}')
-                line_count += 1
-                rp = RosterPlayer()
-                rp.team_id = row[1]
-                rp.player_id = row[0]
-                rp.season = current_season
-                rp.salary = row[6]
-                if row[7]:
-                    rp.unadjusted_salary = row[7]
-                if row[8]:
-                    rp.is_franchised = True
+    rosterplayers = RosterPlayer.query.first()
+    if rosterplayers != None:
+        flash("You can't import from CSVs with rosters already in the system. please delete rosters first.")
+    else:    
+        with open('initial_rosters_with_salary_for_import.csv') as csv_file:
+            csv_reader = csv.reader(csv_file, delimiter=",")
+            line_count = 0
+            for row in csv_reader:
+                if line_count == 0:
+                    print(f'Column names are {", ".join(row)}')
+                    line_count += 1
                 else:
-                    rp.is_franchised = False
-                if row[9]:
-                    rp.is_ir = True
-                else:
-                    rp.is_ir = False
-                rp.date_added = "2022-09-01"
-                db.session.add(rp)
-                db.session.commit()
-
-
-        print(f'Processed {line_count} lines.')
-    
-    # for r in rosters:
-    #     # team_id = r['owner_id']
-    #     team_id = r['roster_id']
-    #     for playerid in r['players']:
-    #         # check if player exists in Database
-    #         playerindb = Player.query.filter_by(id = playerid).first()
-    #         if playerindb == None:
-    #             print(f"player id {playerid} not found")
-    #         else:
-    #             # eventually we should check if it already exists first
-    #             rp = RosterPlayer.query.filter_by(player_id = playerid).first()
-    #             if rp == None:                    
-    #                 player = RosterPlayer()
-    #                 player.player_id = playerid
-    #                 player.team_id = team_id
-    #                 player.season = 2022
-    #                 player.salary = 0
-    #                 player.date_added = "2022-10-01"
-    #                 player.date_updated = datetime.utcnow()
-    #                 player.is_Franchised = False
-    #                 db.session.add(player)
-    #                 db.session.commit()
-    #                 updated_player_count += 1
-    flash(f"Processed {line_count} players")
-    return redirect("/")
-
-@app.route('/roster_csv/')
-def load_roster_from_csv():
-    response = requests.get(rosters_url)
-    rosters = response.json()
-    updated_player_count = 0
-    for r in rosters:
-        # team_id = r['owner_id']
-        team_id = r['roster_id']
-        for playerid in r['players']:
-            # check if player exists in Database
-            playerindb = Player.query.filter_by(id = playerid).first()
-            if playerindb == None:
-                print(f"player id {playerid} not found")
-            else:
-                # eventually we should check if it already exists first
-                rp = RosterPlayer.query.filter_by(player_id = playerid).first()
-                if rp == None:                    
-                    player = RosterPlayer()
-                    player.player_id = playerid
-                    player.team_id = team_id
-                    player.season = current_season
-                    player.salary = 0
-                    player.date_added = "2022-10-01"
-                    player.date_updated = datetime.utcnow()
-                    player.is_franchised = False
-                    db.session.add(player)
+                    print(f'\t player_id:{row[0]}, roster_id:{row[1]}, owner_id:{row[2]}, player:{row[5]}, salary:{row[6]}, unadjusted_salary:{row[7]}, is_Franchised:{row[8]}, is_ir:{row[9]}')
+                    line_count += 1
+                    rp = RosterPlayer()
+                    rp.team_id = row[1]
+                    rp.player_id = row[0]
+                    rp.season = current_season
+                    rp.salary = row[6]
+                    if row[7]:
+                        rp.unadjusted_salary = row[7]
+                    if row[8]:
+                        rp.is_franchised = True
+                    else:
+                        rp.is_franchised = False
+                    if row[9]:
+                        rp.is_ir = True
+                    else:
+                        rp.is_ir = False
+                    rp.date_added = "2022-09-01"
+                    db.session.add(rp)
                     db.session.commit()
-                    updated_player_count += 1
-    flash(f"Added {updated_player_count} players")
+
+
+            print(f'Processed {line_count} lines.')
+        
+        flash(f"Processed {line_count} players")
     return redirect("/")
 
+# @app.route('/roster_csv/')
+# def load_roster_from_csv():
+#     response = requests.get(rosters_url)
+#     rosters = response.json()
+#     updated_player_count = 0
+#     for r in rosters:
+#         # team_id = r['owner_id']
+#         team_id = r['roster_id']
+#         for playerid in r['players']:
+#             # check if player exists in Database
+#             playerindb = Player.query.filter_by(id = playerid).first()
+#             if playerindb == None:
+#                 print(f"player id {playerid} not found")
+#             else:
+#                 # eventually we should check if it already exists first
+#                 rp = RosterPlayer.query.filter_by(player_id = playerid).first()
+#                 if rp == None:                    
+#                     player = RosterPlayer()
+#                     player.player_id = playerid
+#                     player.team_id = team_id
+#                     player.season = current_season
+#                     player.salary = 0
+#                     player.date_added = "2022-10-01"
+#                     player.date_updated = datetime.utcnow()
+#                     player.is_franchised = False
+#                     db.session.add(player)
+#                     db.session.commit()
+#                     updated_player_count += 1
+#     flash(f"Added {updated_player_count} players")
+#     return redirect("/")
 
-
+@app.route('/rosterplayer/update/<int:id>', methods = ['GET', 'POST'])
+@login_required
+def updateRosterPlayer(id):
+    form = PlayerRosterForm()
+    rp_to_update = RosterPlayer.query.get_or_404(id)
+    # print(rp_to_update.full_name)
+    if request.method == "POST":
+        rp_to_update.salary = request.form['salary']
+        rp_to_update.team_id = request.form['team']
+        if request.form['date_added'] == '':
+            rp_to_update.date_added = None
+        else:
+            rp_to_update.date_added = request.form['date_added']
+        if request.form['date_removed'] == '':
+            rp_to_update.date_removed = None
+        else:
+            rp_to_update.date_removed = request.form['date_removed']
         
+        try:
+            db.session.commit()
+            flash("Roster Player updated successfully.")
+            return redirect(url_for('view_all_roster_players'))
+        except:
+            flash("Oops, that didn't work.")
+            return render_template('update_roster_player.html', form=form, player_to_update = rp_to_update)
+    else:
+        my_choice = [(team.id, team.owner.teamname) for team in Team.query.filter(Team.id == rp_to_update.team_id)]
+        other_choices = [(team.id, team.owner.teamname) for team in Team.query.filter(Team.id != rp_to_update.team_id).order_by(Team.id)]
+        my_choice.extend(other_choices)
+        form.team.choices = my_choice
+        print(rp_to_update.date_removed)
+        form.date_removed.data = rp_to_update.date_removed
+        form.date_added.data = rp_to_update.date_added
+
+        return render_template('update_roster_player.html', form=form, player_to_update = rp_to_update)
+
+@app.route('/rosterplayer/delete/<int:id>', methods=['GET', 'POST'])
+@login_required
+def deleteRosterPlayer(id):
+    rp = RosterPlayer.query.get_or_404(id)
+    #try to find related caphold and delete
+    # caphold = CapHold.query.filter(CapHold.associated_transaction_id == rp.close_transaction_id, CapHold.player_id == rp.player_id, CapHold.team_id == rp.team_id)
+    try:
+        # if caphold == None:
+        #     db.session.delete(caphold)
+        #     db.session.commit()
+        #     flash("Caphold successfully deleted.")
+        db.session.delete(rp)
+        db.session.commit()
+        flash("Roster player successfully deleted.")
+        return redirect(url_for('view_all_roster_players'))
+    except:
+        flash("Deletion failed.")
+        return redirect(url_for('view_all_roster_players'))
+    
+
+@app.route('/caphold/update/<int:id>', methods = ['GET', 'POST'])
+@login_required
+def updateCapHold(id):
+    form = CapHoldForm()
+    ch_to_update = CapHold.query.get_or_404(id)
+
+    # if form.validate_on_submit():
+    #         post.title = form.title.data
+    #         # post.author = form.author.data
+    #         post.slug = form.slug.data
+    #         post.content = form.content.data
+    #         # Update Database
+    #         db.session.add(post)
+    #         db.session.commit()
+    #         flash("Post Has Been Updated!")
+    #         return redirect(url_for('post', id=post.id))
+    if request.method == "POST":
+        ch_to_update.caphold = request.form['caphold']
+        ch_to_update.team_id = request.form['team']
+        ch_to_update.season = request.form['season']
+        ch_to_update.reason = request.form['reason']
+        ch_to_update.note = request.form['note']
+        if request.form['effective_date'] == '':
+            ch_to_update.effective_date = None
+        else:
+            ch_to_update.effective_date = request.form['effective_date']
+        
+        
+        try:
+            db.session.commit()
+            flash("Roster Player updated successfully.")
+            return redirect(url_for('index'))
+        except:
+            flash("Oops, that didn't work.")
+            return render_template('update_cap_hold.html', form=form, caphold_to_update = ch_to_update)
+    else:
+        my_choice = [(team.id, team.owner.teamname) for team in Team.query.filter(Team.id == ch_to_update.team_id)]
+        other_choices = [(team.id, team.owner.teamname) for team in Team.query.filter(Team.id != ch_to_update.team_id).order_by(Team.id)]
+        my_choice.extend(other_choices)
+        form.team.choices = my_choice
+        form.effective_date.data = ch_to_update.effective_date
+        form.note.data = ch_to_update.note
+
+        return render_template('update_cap_hold.html', form=form, caphold_to_update = ch_to_update)
+
+@app.route('/caphold/delete/<int:id>', methods=['GET', 'POST'])
+@login_required
+def deleteCapHold(id):
+    ch = CapHold.query.get_or_404(id)
+    try:
+        db.session.delete(ch)
+        db.session.commit()
+        flash("Cap Hold successfully deleted.")
+        return redirect(url_for('index'))
+    except:
+        flash("Deletion failed.")
+        return redirect(url_for('index'))
+
 @app.route('/players/editsalary', methods=['GET', 'POST'])
 def editSalary():
     form = PlayerRosterForm()
@@ -646,6 +768,38 @@ def editSalary():
     our_players = Player.query.order_by(Player.id)                   
 
     return render_template("edit_salary.html", form=form, playername = playername, our_players = our_players)
+
+
+        
+# @app.route('/players/editsalary', methods=['GET', 'POST'])
+# def editSalary():
+#     form = PlayerRosterForm()
+#     if form.validate_on_submit():
+#         # we actually need to check the roster here
+#         matches = Player.query.filter_by(full_name = form.playername.data).count()
+#         if matches == 1:
+#             flash("unique match found.")
+#             myplayer = Player.query.filter_by(full_name = form.playername.data).first()
+#             roster_to_update = Roster.query.filter_by(player_id = myplayer.id).first()
+#             if roster_to_update == None:
+#                 roster_to_add = Roster()
+#                 roster_to_add.player_id = myplayer.id
+#                 roster_to_add.salary = form.salary.data
+#                 roster_to_add.team_id = 10
+#                 # roster_to_add.team_id = form. calculate team id based on name
+#                 # player_to_update.full_name = form.playername.data
+#                 db.session.add(roster_to_add)
+#                 db.session.commit()
+#                 flash("player added")
+#                 print(f"added player {form.playername.data} to roster {roster_to_add.team_id} with salary {roster_to_add.salary}")
+
+#         else:
+#             flash("No unique match found")
+#     playername = form.playername.data
+#     form.playername.data = ''    
+#     our_players = Player.query.order_by(Player.id)                   
+
+#     return render_template("edit_salary.html", form=form, playername = playername, our_players = our_players)
 
 # add code to call sleeper API
 @app.route('/nflstate')

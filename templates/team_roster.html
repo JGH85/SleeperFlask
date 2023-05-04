@@ -36,8 +36,170 @@
 
 
 
+<h3>Active Roster</h3>
 
 {% if team_roster %}
+<table class="table table-hover table-striped table-sm">
+<!-- <table class="table"> -->
+
+
+	<thead class="table-dark">
+	  <tr>
+		<th scope="col">Player</th>
+		<th scope="col">Season</th>
+		<th scope="col">Salary</th>
+		<th scope="col">Original Salary</th>
+		<!-- <th scope="col">Franchised?</th> -->
+		<th scope="col">Date Added</th>
+		<!-- <th scope="col">Date Removed</th> -->
+		{% if current_user.id in alist %}
+		<th scope="col"></th>
+		<th scope="col"></th>
+		{% endif %}
+	  </tr>
+	</thead>
+	<tbody>
+
+	{% for p in team_roster %}
+
+	{% if p.is_ir %}
+	<tr class="table-danger">
+	{% elif p.is_franchised %}
+	<tr class="table-primary">
+	{% else %}
+	<tr>
+		{% endif %}
+
+
+	  
+		<th scope="row">
+			{{p.player.full_name}}
+			{% if p.is_ir %}
+			&dagger;
+			{% elif p.is_franchised %}
+			*
+			{% else %}
+			{% endif %}
+		
+		
+		</th>
+		<td>{{p.season}}</td>
+		<td>{{p.salary}}</td>
+
+		{% if p.unadjusted_salary %}
+		<td>{{p.unadjusted_salary}}</td>
+		{% else %}
+		<td></td>
+		{% endif %}
+
+		<!-- <td>{{p.is_Franchised}}</td> -->
+		<td>{{p.date_added}}</td>
+
+		<!-- {% if p.date_removed %}
+		<td>{{p.date_removed}}</td>
+		{% else %}
+		<td></td>
+		{% endif %} -->
+		{% if current_user.id in alist %}
+		<td><a href="{{ url_for('updateRosterPlayer', id=p.id)}}">{{p.id}}</a></td>
+		<td><a href="{{ url_for('deleteRosterPlayer', id=p.id)}}">Delete</a></td>
+		{% endif %}
+
+	</tr>
+
+	  {% endfor %}
+	  <tr class = "table-dark">
+		<th scope="col">Total</th>
+		<th scope="col"></th>
+		<th scope="col">{{active_roster_salary}}</th>
+		<th scope="col"></th>
+		<!-- <th scope="col">Franchised?</th> -->
+		<th scope="col"></th>
+		{% if current_user.id in alist %}
+		<th scope="col"></th>
+		<th scope="col"></th>
+		{% endif %}
+
+	  </tr>
+
+	</tbody>
+  </table>
+
+  {% else %}
+  <em>No results found.</em>
+
+  {% endif %}
+  <p style="font-size: 12px;">* = Franchised, &dagger; = IR</p>
+<br>
+
+
+
+  {% if capholds %}
+
+  <h3>Cap Holds</h3>
+  <table class="table table-hover table-striped table-sm">
+  <!-- <table class="table"> -->
+  
+  
+	  <thead class="table-dark">
+		<tr>
+		  <th scope="col">Player</th>
+		  <th scope="col">Season</th>
+		  <th scope="col">Hold</th>
+		  <th scope="col">Reason</th>
+		  <!-- <th scope="col">Franchised?</th> -->
+		  <th scope="col">Effective Date</th>
+		  {% if current_user.id in alist %}
+		  <td></td>
+		  <td></td>
+		  {% endif %}
+  
+		</tr>
+	  </thead>
+	  <tbody>
+  
+	  {% for ch in capholds %}
+  
+	  <tr>
+		<th scope="row">
+			  {{ch.player.full_name}}
+		  </th>
+		  <td>{{ch.season}}</td>
+		  <td>{{ch.caphold}}</td>
+  		  <td>{{ch.reason}}</td>
+  		  <td>{{ch.effective_date}}</td>
+			{% if current_user.id in alist %}
+			<td><a href="{{ url_for('updateCapHold', id=ch.id)}}">{{ch.id}}</a></td>
+			<td><a href="{{ url_for('deleteCapHold', id=ch.id)}}">Delete</a></td>
+			{% endif %}
+	  </tr>
+  
+		{% endfor %}
+		
+		<tr class = "table-dark">
+			<th scope="row">
+				  Total
+			  </th>
+			  <td></td>
+			  <td>{{total_cap_holds}}</td>
+				<td></td>
+				<td></td>
+				{% if current_user.id in alist %}
+		  <td></td>
+		  <td></td>
+		  {% endif %}
+		  </tr>
+	  </tbody>
+	</table>
+  
+	{% else %}
+	<em>No Cap Holds.</em>
+  
+	{% endif %}
+
+	<h3>Roster History</h3>
+
+	{% if roster_history %}
 <table class="table table-hover table-striped table-sm">
 <!-- <table class="table"> -->
 
@@ -56,7 +218,7 @@
 	</thead>
 	<tbody>
 
-	{% for p in team_roster %}
+	{% for p in roster_history %}
 
 	{% if p.is_ir %}
 	<tr class="table-danger">
@@ -100,16 +262,16 @@
 	</tr>
 
 	  {% endfor %}
-	  <tr class = "table-dark">
+	  <!-- <tr class = "table-dark">
 		<th scope="col">Total</th>
 		<th scope="col"></th>
 		<th scope="col">{{active_roster_salary}}</th>
 		<th scope="col"></th>
-		<!-- <th scope="col">Franchised?</th> -->
+		<!-- <th scope="col">Franchised?</th> 
 		<th scope="col"></th>
 		<th scope="col"></th>
 
-	  </tr>
+	  </tr> -->
 
 	</tbody>
   </table>
@@ -118,63 +280,6 @@
   <em>No results found.</em>
 
   {% endif %}
-
-  <br>
-  <p style="font-size: 12px;">* = Franchised, &dagger; = IR</p>
-
-
-
-
-  {% if capholds %}
-
-  <h3>Cap Holds</h3>
-  <table class="table table-hover table-striped table-sm">
-  <!-- <table class="table"> -->
-  
-  
-	  <thead class="table-dark">
-		<tr>
-		  <th scope="col">Player</th>
-		  <th scope="col">Season</th>
-		  <th scope="col">Hold</th>
-		  <th scope="col">Reason</th>
-		  <!-- <th scope="col">Franchised?</th> -->
-		  <th scope="col">Effective Date</th>
-  
-		</tr>
-	  </thead>
-	  <tbody>
-  
-	  {% for ch in capholds %}
-  
-	  <tr>
-		<th scope="row">
-			  {{ch.player.full_name}}
-		  </th>
-		  <td>{{ch.season}}</td>
-		  <td>{{ch.caphold}}</td>
-  		  <td>{{ch.reason}}</td>
-  		  <td>{{ch.effective_date}}</td>
-	  </tr>
-  
-		{% endfor %}
-		
-		<tr class = "table-dark">
-			<th scope="row">
-				  Total
-			  </th>
-			  <td></td>
-			  <td>{{total_cap_holds}}</td>
-				<td></td>
-				<td></td>
-		  </tr>
-	  </tbody>
-	</table>
-  
-	{% else %}
-	<em>No Cap Holds.</em>
-  
-	{% endif %}
 <!-- 
   <table class="mytesttable">
 	<tr>

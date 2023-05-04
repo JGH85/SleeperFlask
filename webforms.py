@@ -1,6 +1,6 @@
 from flask_wtf import FlaskForm
 from flask_wtf.file import FileField
-from wtforms import StringField, SubmitField, PasswordField, BooleanField, ValidationError, SelectField
+from wtforms import StringField, SubmitField, PasswordField, BooleanField, ValidationError, SelectField, IntegerField, DateTimeLocalField, DateTimeField, DecimalField
 from wtforms.validators import DataRequired, EqualTo, Length, Email, ValidationError
 from wtforms.widgets import TextArea
 from flask_ckeditor import CKEditorField
@@ -71,15 +71,27 @@ class ResetPasswordForm(FlaskForm):
     submit = SubmitField('Reset Password')
 
 class PlayerForm(FlaskForm):
-    playername = StringField("playername")
-    salary = StringField("Salary", validators=[DataRequired()])
+    playername = StringField("Player")
+    salary = DecimalField("Salary", validators=[DataRequired()])
     teamname = StringField("Team Name")
     submit = SubmitField("Submit")
 
 class PlayerRosterForm(FlaskForm):
-    playername = StringField("playername")
-    salary = StringField("Salary", validators=[DataRequired()])
-    teamname = StringField("Team Id")
+    playername = StringField("Player")
+    salary = DecimalField("Salary", validators=[DataRequired()])
+    team = SelectField("Team", choices = [], coerce = int)
+    date_added = DateTimeLocalField("Date Added", format = "%Y-%m-%d %H:%M")
+    date_removed = DateTimeLocalField("Date Removed", format = "%Y-%m-%d %H:%M")
+    submit = SubmitField("Submit")
+
+class CapHoldForm(FlaskForm):
+    playername = StringField("Player")
+    team = SelectField("Team", choices = [], coerce = int)
+    caphold = DecimalField("Cap Hold", validators=[DataRequired()])
+    season = IntegerField("Season", validators=[DataRequired()])
+    reason = StringField("Reason", validators=[Length(max=20)])
+    note = CKEditorField('Note')
+    effective_date = DateTimeField("Effective Date", format = "%Y-%m-%d")
     submit = SubmitField("Submit")
 
 class SearchForm(FlaskForm):

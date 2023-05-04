@@ -13,40 +13,49 @@
 {% endfor %}
 <br>
 
-	<h1>Update Player on Roster</h1>
+	<h1>Update Cap Hold</h1>
 	<br/>
-	<!-- <p>Id to Update: {{ id }}</p>
-	<p>Current User Id: {{ current_user.id }}</p> -->
 
 {% if current_user.id in alist %}
 <div class="shadow p-3 mb-5 bg-body rounded">
-	<form action="/rosterplayer/update/{{ player_to_update.id }}" method="POST">
+	<form action="/caphold/update/{{ caphold_to_update.id }}" method="POST">
 		{{ form.hidden_tag() }}
 
 		{{ form.playername.label(class="form-label") }}
 
-		{{ form.playername(class="form-control-plaintext", value=player_to_update.player.full_name) }}
+		{{ form.playername(class="form-control-plaintext", value=caphold_to_update.player.full_name) }}
 		<br/>
 
-		{{ form.salary.label(class="form-label") }}
+		{{ form.caphold.label(class="form-label") }}
 
-		{{ form.salary(class="form-control", value=player_to_update.salary) }}
+		{{ form.caphold(class="form-control", value=caphold_to_update.caphold) }}
 		<br/>
 		
 		{{ form.team.label(class="form-label") }}
 
-		{{ form.team(class="form-control", value=player_to_update.team_id) }}
+		{{ form.team(class="form-control", value=caphold_to_update.team_id) }}
 		<br/>
 
-		{{ form.date_added.label(class="form-label") }}
+		{{ form.season.label(class="form-label") }}
 
-		{{ form.date_added(class="datepicker") }}
+		{{ form.season(class="form-control", value=caphold_to_update.season) }}
 		<br/>
 
-		{{ form.date_removed.label(class="form-label") }}
+		{{ form.reason.label(class="form-label") }}
 
-		{{ form.date_removed(class="datepicker") }}
+		{{ form.reason(class="form-control", value=caphold_to_update.reason) }}
 		<br/>
+
+		{{ form.note.label(class="form-label") }}
+
+		{{ form.note(class="form-control", rows="3") }}
+		<br/>
+
+		{{ form.effective_date.label(class="form-label") }}
+
+		{{ form.effective_date(class="datepicker") }}
+		<br/>
+
 
 		<br/>
 		
