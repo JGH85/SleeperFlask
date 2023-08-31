@@ -1,6 +1,6 @@
 from flask_wtf import FlaskForm
 from flask_wtf.file import FileField
-from wtforms import StringField, SubmitField, PasswordField, BooleanField, ValidationError, SelectField, IntegerField, DateTimeLocalField, DateTimeField, DecimalField
+from wtforms import StringField, SubmitField, PasswordField, BooleanField, ValidationError, SelectField, IntegerField, DateTimeLocalField, DateTimeField, DecimalField, DateField
 from wtforms.validators import DataRequired, EqualTo, Length, Email, ValidationError
 from wtforms.widgets import TextArea
 from flask_ckeditor import CKEditorField
@@ -82,6 +82,26 @@ class PlayerRosterForm(FlaskForm):
     team = SelectField("Team", choices = [], coerce = int)
     date_added = DateTimeLocalField("Date Added", format = "%Y-%m-%d %H:%M")
     date_removed = DateTimeLocalField("Date Removed", format = "%Y-%m-%d %H:%M")
+    submit = SubmitField("Submit")
+
+class AddPlayerRosterForm(FlaskForm):
+    player_id = SelectField("Player", choices = [])
+    salary = DecimalField("Salary", validators=[DataRequired()])
+    team = SelectField("Team", choices = [], coerce = int)
+    season = SelectField("Season", choices = [], coerce = int)
+    note = StringField("Note")
+    date_added = DateTimeLocalField("Date Added", format = "%Y-%m-%d %H:%M")
+    date_removed = DateTimeLocalField("Date Removed", format = "%Y-%m-%d %H:%M")
+    submit = SubmitField("Submit")
+
+class FranchisePlayerRosterForm(FlaskForm):
+    player_id = SelectField("Player", choices = [])
+    salary = DecimalField("Franchised Salary", validators=[DataRequired()])
+    team = SelectField("Team", choices = [], coerce = int)
+    season = SelectField("Season", choices = [], coerce = int)
+    note = StringField("Note")
+    date_added = DateField("Date Added", format = "%Y-%m-%d")
+    date_removed = DateField("Date Removed", format = "%Y-%m-%d")
     submit = SubmitField("Submit")
 
 class CapHoldForm(FlaskForm):

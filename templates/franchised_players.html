@@ -9,14 +9,13 @@
     </div>    
 {% endfor %}
 
-<h1>Players and Salaries</h1> 
+<h1>Franchised Players</h1> 
 {% if current_user.id in alist %}
-<form method="GET" action="{{url_for('addRosterPlayer')}}" class="d-flex">
+  <form method="GET" action="{{url_for('franchiseRosterPlayer')}}" class="d-flex">
 	{{ form.hidden_tag() }}	
-	<button class="btn btn-outline-info" type="submit">Add Player to Roster</button>
+	<button class="btn btn-outline-info" type="submit">Franchise Player</button>
   </form>
-<br>
-
+  <br>
 {% endif %}
 
 
@@ -102,7 +101,7 @@
   {% endif %}
 
   <br>
-  <p style="font-size: 12px;">* = Franchised, &dagger; = IR</p>
+  <!-- <p style="font-size: 12px;">* = Franchised, &dagger; = IR</p> -->
 
 <!-- 
   <table class="mytesttable">

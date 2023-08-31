@@ -3,7 +3,7 @@
       <img src="https://static.www.nfl.com/image/upload/v1554321393/league/nvfr7ogywskqrfaiu38m.svg" alt="" height="50">
       <!-- <img src="{{url_for('static', filename='images/nfl.svg')}}" alt="" height="50"> -->
 
-      <a class="navbar-brand" href="#">Troy Siade Dynasty League 2022</a>
+      <a class="navbar-brand" href="#">Troy Siade Dynasty League 2023</a>
       <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarSupportedContent" aria-controls="navbarSupportedContent" aria-expanded="false" aria-label="Toggle navigation">
         <span class="navbar-toggler-icon"></span>
       </button>
@@ -12,15 +12,15 @@
           <li class="nav-item">
             <a class="nav-link active" aria-current="page" href="{{ url_for('index') }}">Home</a>
           </li>
-          <li class="nav-item">
+          <!-- <li class="nav-item">
             <a class="nav-link" href="{{ url_for('getNFLState') }}">NFL State</a>
-          </li>
+          </li> -->
           {% if current_user.is_authenticated %}
             <li class="nav-item">
               <a class="nav-link" href="{{ url_for('logout') }}">Logout</a>
             </li>
             <li class="nav-item">
-              <a class="nav-link" href="{{ url_for('dashboard') }}">Dashboard</a>
+              <a class="nav-link" href="{{ url_for('dashboard') }}">Account</a>
             </li>
 
             <!-- {% if current_user.id in alist %}
@@ -42,7 +42,7 @@
               Teams
             </a>
             <ul class="dropdown-menu">
-              <li><a class="dropdown-item" href="{{ url_for('view_rosters') }}">All Teams</a></li>
+              <li><a class="dropdown-item" href="{{ url_for('view_rosters') }}">Teams Overview</a></li>
             
               <li><hr class="dropdown-divider"></li>
 
@@ -51,21 +51,22 @@
               {% endfor %}
             </ul>
           </li>
-
+          <!-- <li class="nav-item">
+            <a class="nav-link" href="{{ url_for('view_active_roster_players') }}">All Rostered Players</a>
+          </li> -->
           <li class="nav-item dropdown">
-            <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">
-              Tools
-            </a>
+            <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">Reports</a>
             <ul class="dropdown-menu">
-              <li><a class="dropdown-item" href="{{ url_for('add_post') }}">Add League Message</a></li>
-              <li><a class="dropdown-item" href="{{ url_for('posts') }}">Message Board</a></li>
-              <li><a class="dropdown-item" href="{{ url_for('view_rosters') }}">Teams</a></li>
-              <li><a class="dropdown-item" href="{{ url_for('view_active_roster_players') }}">Active Rosters</a></li>
+              <!-- <li><a class="dropdown-item" href="{{ url_for('add_post') }}">Add League Message</a></li> -->
+              <!-- <li><a class="dropdown-item" href="{{ url_for('posts') }}">Message Board</a></li> -->
+              <!-- <li><a class="dropdown-item" href="{{ url_for('view_rosters') }}">Teams</a></li> -->
+              <li><a class="dropdown-item" href="{{ url_for('view_active_roster_players') }}">All Rostered Players</a></li>
+              <li><a class="dropdown-item" href="{{ url_for('view_franchised_roster_players') }}">Franchised Players</a></li>
 
               
-              <li><hr class="dropdown-divider"></li>
-              <li><a class="dropdown-item" href="{{ url_for('add_user') }}">Users</a></li>
-              <li><a class="dropdown-item" href="{{ url_for('update_owners') }}">Update Owners</a></li>
+              <!-- <li><hr class="dropdown-divider"></li> -->
+              <!-- <li><a class="dropdown-item" href="{{ url_for('add_user') }}">Users</a></li> -->
+              <!-- <li><a class="dropdown-item" href="{{ url_for('update_owners') }}">Update Owners</a></li> -->
 
             </ul>
           </li>
@@ -89,7 +90,7 @@
               <li><a class="dropdown-item" href="{{ url_for('add_rosters') }}">Rosters</a></li>
               <li><a class="dropdown-item" href="{{ url_for('process_transactions') }}">Process Transactions</a></li>
               <li><a class="dropdown-item" href="{{ url_for('load_initial_rosters_from_csv') }}" style="color:red">Initial CSV Load Transactions</a></li>
-
+              <li><a class="dropdown-item" href="{{ url_for('export_current_rosters') }}">Export Rosters to CSV</a></li>
             </ul>
           </li>
           {% endif %}
