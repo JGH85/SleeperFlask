@@ -2087,7 +2087,7 @@ if __name__ == '__main__':
     # app.run(host='0.0.0.0:$PORT')
     # app.run(host=host, port=port, debug=debug)
     # app.run(debug=True, port=os.getenv("PORT", default=3000))
-    app.run(port=os.getenv("PORT"))
+    app.run(port=os.getenv("PORT"), host=os.getenv("HOST"))
 
 
 #features to add in future:
