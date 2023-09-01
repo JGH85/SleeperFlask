@@ -521,21 +521,32 @@ def view_rosters():
     for t in teams:
         team_roster = RosterPlayer.query.filter(RosterPlayer.team_id == t.id, RosterPlayer.date_removed.is_(None)).order_by(RosterPlayer.salary.desc())
         capholds = CapHold.query.filter(CapHold.team_id == t.id, CapHold.season == current_season).order_by(CapHold.caphold.desc())
-
-        active_roster_salary = 0
+        
+        active_roster_count = 0
+        taxi_count = 0
+        roster_salary = 0
         total_cap_holds = 0
 
         for r in team_roster:
             if not r.is_ir:
-                active_roster_salary += r.salary
+                roster_salary += r.salary
+                if not r.is_Taxi:
+                    active_roster_count += 1
+            if r.is_Taxi:
+                taxi_count += 1
         for c in capholds:
             total_cap_holds += c.caphold  
-        used_cap = active_roster_salary + total_cap_holds
+        
+        roster_space = 18-active_roster_count
+        used_cap = roster_salary + total_cap_holds
         cap_space = 200 - used_cap
         t.cap_space = cap_space
         t.used_cap = used_cap
-        t.active_roster_salary = active_roster_salary
+        t.active_roster_salary = roster_salary
         t.cap_holds = total_cap_holds
+        t.active_roster_count = active_roster_count
+        t.roster_space = roster_space
+        t.taxi_count = taxi_count
 
 
     return render_template('teams.html', teams=teams)
