@@ -21,6 +21,14 @@ h1 {
     font-size: 30;
 }
 
+.table-numbers{
+    font-family: Roboto !important;
+}
+
+.table-numbers > thead {
+    font-family: 'Libre Baskerville';
+}
+
 #demo {
     font-family: 'Roboto';
     color: navy;
@@ -37,7 +45,10 @@ h1 {
 
 .table {
     font-family: 'Libre Baskerville';
+    /* font-family: Roboto; */
 }
+
+
 
 .used_cap {
     color: red;

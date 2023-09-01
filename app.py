@@ -120,6 +120,7 @@ caphold_multiplier = Decimal("0.3")
 year_over_year_multiplier = Decimal("1.1")
 drop_cap_hold_stop = date.fromisoformat('2023-03-01')
 drops_cap_hold_cutoff = date.fromisoformat('2023-09-01')
+roster_max = 18
 
 
 def getLeagueStatus():
@@ -443,7 +444,7 @@ def add_rosters():
     return redirect("/")
 
 # @app.route('/rosters/update_ir')
-def update_roster_ir():
+def update_roster_ir_and_taxi():
     response = requests.get(rosters_url)
     rosters = response.json()
     updated_roster_count = 0
@@ -455,7 +456,16 @@ def update_roster_ir():
         db.session.add(old_ir_player)
         db.session.commit()
 
+    print("processing taxi players")
+    old_taxi_players = RosterPlayer.query.filter(RosterPlayer.is_Taxi == True)
+    for old_taxi_player in old_taxi_players:
+        print(old_taxi_player.player.full_name)
+        old_taxi_player.is_Taxi = False
+        db.session.add(old_taxi_player)
+        db.session.commit()
 
+    print("processing new IR players")
+    #get IR and set new ones
     for r in rosters:
         roster_id = r['roster_id']
         reserve_id = ''
@@ -478,6 +488,25 @@ def update_roster_ir():
         # updated_roster_count += 1
     # flash(f"Added {updated_roster_count} teams")
     # return redirect("/")
+
+    print("processing new taxi players")
+    #get Taxi and set new ones
+    for r in rosters:
+        roster_id = r['roster_id']
+        taxi_ids = ''
+        if r['taxi'] != None:
+            taxi_ids = r['taxi']
+        if taxi_ids:
+            for taxi in taxi_ids:
+                # p = Player.query.filter_by(id=taxi).first()
+                # t = Team.query.filter_by(id=roster_id).first()
+                # flash(f'Team:{t.owner.teamname}, IR:{p.full_name}')
+                rp = RosterPlayer.query.filter(RosterPlayer.team_id == roster_id, RosterPlayer.player_id == taxi, RosterPlayer.date_removed.is_(None)).first()
+                rp.is_Taxi = True
+                db.session.add(rp)
+                db.session.commit()
+
+            
 
 
 @app.route('/rosters/')
@@ -516,10 +545,12 @@ def view_roster(id):
     success = process_transactions("view_roster")
     if not success:
         flash("Error processing transactions. Please contact admininstrator")
-    update_roster_ir()
+    update_roster_ir_and_taxi()
     team = Team.query.filter_by(id = id).first()
     # team_roster = RosterPlayer.query.filter_by(team_id = id).order_by(RosterPlayer.salary.desc())
-    team_roster = RosterPlayer.query.filter(RosterPlayer.team_id == id, RosterPlayer.date_removed.is_(None)).order_by(RosterPlayer.salary.desc())
+    team_roster = RosterPlayer.query.filter(RosterPlayer.team_id == id, RosterPlayer.date_removed.is_(None), RosterPlayer.is_Taxi.is_(None)).order_by(RosterPlayer.salary.desc())
+    taxi_roster = RosterPlayer.query.filter(RosterPlayer.team_id == id, RosterPlayer.date_removed.is_(None), RosterPlayer.is_Taxi == True).order_by(RosterPlayer.salary.desc())
+
     roster_history = RosterPlayer.query.filter(RosterPlayer.team_id == id, RosterPlayer.date_removed.is_not(None), RosterPlayer.season == int(current_season)).order_by(RosterPlayer.date_removed.desc())
 
     for rh in roster_history:
@@ -528,27 +559,41 @@ def view_roster(id):
     capholds = CapHold.query.filter(CapHold.team_id == id, CapHold.season == current_season).order_by(CapHold.caphold.desc())
 
     active_roster_salary = 0
+    active_roster_count = 0
+    taxi_salary = 0
     total_cap_holds = 0
 
     for t in team_roster:
         if not t.is_ir:
             active_roster_salary += t.salary
+            active_roster_count += 1
         # print(f'after {t.player.full_name}, active_roster_salary:{active_roster_salary}')
+    for tx in taxi_roster:
+        if not tx.is_ir:
+            taxi_salary += tx.salary
     for c in capholds:
         total_cap_holds += c.caphold  
-    used_cap = active_roster_salary + total_cap_holds
+    used_cap = active_roster_salary + total_cap_holds + taxi_salary
     cap_space = 200 - used_cap
+    roster_space = roster_max - active_roster_count
+
+    print("test team roster")
+    print(team_roster)
 
 
     return render_template('team_roster.html', 
         team=team, 
         team_roster = team_roster, 
+        taxi_roster = taxi_roster,
         roster_history = roster_history,
         capholds = capholds, 
         active_roster_salary = active_roster_salary, 
+        taxi_salary = taxi_salary,
         total_cap_holds = total_cap_holds, 
         used_cap = used_cap, 
-        cap_space = cap_space        
+        cap_space = cap_space, 
+        roster_space = roster_space,
+        active_roster_count = active_roster_count        
         )
 
 
@@ -660,19 +705,19 @@ def export_current_rosters():
 
 @app.route('/rosterplayersactive/')
 def view_active_roster_players():
-    update_roster_ir()
+    update_roster_ir_and_taxi()
     active_roster_players = RosterPlayer.query.filter(RosterPlayer.date_removed == None).order_by(RosterPlayer.team_id.asc(), RosterPlayer.date_added.asc(), RosterPlayer.salary.desc())
     return render_template('roster_players.html', roster_players = active_roster_players)
 
 @app.route('/rosterplayersfranchised/')
 def view_franchised_roster_players():
-    update_roster_ir()
+    update_roster_ir_and_taxi()
     active_roster_players = RosterPlayer.query.filter(RosterPlayer.date_removed == None, RosterPlayer.is_franchised == True).order_by(RosterPlayer.team_id.asc(), RosterPlayer.date_added.asc(), RosterPlayer.salary.desc())
     return render_template('franchised_players.html', roster_players = active_roster_players)
 
 @app.route('/rosterplayersall/')
 def view_all_roster_players():
-    update_roster_ir()
+    update_roster_ir_and_taxi()
     all_roster_players = RosterPlayer.query.filter().order_by(RosterPlayer.team_id.asc(), RosterPlayer.date_added.asc(), RosterPlayer.salary.desc())
     return render_template('roster_players.html', roster_players = all_roster_players)
 
@@ -1932,6 +1977,7 @@ class RosterPlayer(db.Model):
     open_transaction_id = db.Column(db.BigInteger, db.ForeignKey('transactions.id'))
     close_transaction_id = db.Column(db.BigInteger, db.ForeignKey('transactions.id'))
     note = db.Column(db.String(200))
+    is_Taxi = db.Column(db.Boolean)
 
 
 # player_id = db.Column(db.Integer, db.ForeignKey('player.id'), nullable=False)

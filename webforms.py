@@ -101,7 +101,7 @@ class FranchisePlayerRosterForm(FlaskForm):
     season = SelectField("Season", choices = [], coerce = int)
     note = StringField("Note")
     date_added = DateField("Date Added", format = "%Y-%m-%d")
-    date_removed = DateField("Date Removed", format = "%Y-%m-%d")
+    # date_removed = DateField("Date Removed", format = "%Y-%m-%d")
     submit = SubmitField("Submit")
 
 class CapHoldForm(FlaskForm):

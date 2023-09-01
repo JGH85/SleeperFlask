@@ -20,8 +20,9 @@
 	  </div>
 	  <div class="col text-end">
 		<br>
-		<p class = "used_cap">Used Cap Space: {{used_cap}} </p>
-		<p class = "cap_space">Remaining Cap Space: {{cap_space}}</p>
+		<p class = "used_cap">Used Cap Space: {{used_cap}} &#8226; Roster Spots Used: {{active_roster_count}}</p>
+		<p class = "cap_space">Remaining Cap Space: {{cap_space}} &#8226; Roster Spots Available: {{roster_space}}</p>
+		
 		
 	  </div>
 	</div>
@@ -39,16 +40,17 @@
 <h3>Active Roster</h3>
 
 {% if team_roster %}
-<table class="table table-hover table-striped table-sm">
+<table class="table table-numbers table-hover table-striped table-sm">
 <!-- <table class="table"> -->
 
 
 	<thead class="table-dark">
 	  <tr>
 		<th scope="col">Player</th>
+		<th scope="col">Position</th>
 		<th scope="col">Season</th>
 		<th scope="col">Salary</th>
-		<th scope="col">Original Salary</th>
+		<!-- <th scope="col">Original Salary</th> -->
 		<!-- <th scope="col">Franchised?</th> -->
 		<th scope="col">Date Added</th>
 		<!-- <th scope="col">Date Removed</th> -->
@@ -65,7 +67,7 @@
 	{% if p.is_ir %}
 	<tr class="table-danger">
 	{% elif p.is_franchised %}
-	<tr class="table-primary">
+	<tr class="table-info">
 	{% else %}
 	<tr>
 		{% endif %}
@@ -74,23 +76,25 @@
 	  
 		<th scope="row">
 			{{p.player.full_name}}
+			{% if p.is_franchised %}
+			*
+			{% endif %}
 			{% if p.is_ir %}
 			&dagger;
-			{% elif p.is_franchised %}
-			*
-			{% else %}
 			{% endif %}
+			
 		
 		
 		</th>
+		<td>{{p.player.position}}</td>
 		<td>{{p.season}}</td>
-		<td>{{p.salary}}</td>
+		<td>{{p.salary}} {% if p.unadjusted_salary %}({{p.unadjusted_salary}}){% endif %}</td>
 
-		{% if p.unadjusted_salary %}
+		<!-- {% if p.unadjusted_salary %}
 		<td>{{p.unadjusted_salary}}</td>
 		{% else %}
 		<td></td>
-		{% endif %}
+		{% endif %} -->
 
 		<!-- <td>{{p.is_Franchised}}</td> -->
 		<td>{{p.date_added}}</td>
@@ -101,7 +105,7 @@
 		<td></td>
 		{% endif %} -->
 		{% if current_user.id in alist %}
-		<td><a href="{{ url_for('updateRosterPlayer', id=p.id)}}">{{p.id}}</a></td>
+		<td><a href="{{ url_for('updateRosterPlayer', id=p.id)}}">Edit</a></td>
 		<td><a href="{{ url_for('deleteRosterPlayer', id=p.id)}}">Delete</a></td>
 		{% endif %}
 
@@ -110,6 +114,7 @@
 	  {% endfor %}
 	  <tr class = "table-dark">
 		<th scope="col">Total</th>
+		<th scope="col"></th>
 		<th scope="col"></th>
 		<th scope="col">{{active_roster_salary}}</th>
 		<th scope="col"></th>
@@ -129,7 +134,107 @@
   <em>No results found.</em>
 
   {% endif %}
-  <p style="font-size: 12px;">* = Franchised, &dagger; = IR</p>
+  <p style="font-size: 12px;">* = Franchised, &dagger; = IR, () = original acquired value</p>
+<br>
+
+
+<h3>Taxi Squad</h3>
+
+{% if taxi_roster %}
+<table class="table table-numbers table-hover table-striped table-sm">
+<!-- <table class="table"> -->
+
+
+	<thead class="table-dark">
+	  <tr>
+		<th scope="col">Player</th>
+		<th scope="col">Position</th>
+		<th scope="col">Season</th>
+		<th scope="col">Salary</th>
+		<!-- <th scope="col">Original Salary</th> -->
+		<!-- <th scope="col">Franchised?</th> -->
+		<th scope="col">Date Added</th>
+		<!-- <th scope="col">Date Removed</th> -->
+		{% if current_user.id in alist %}
+		<th scope="col"></th>
+		<th scope="col"></th>
+		{% endif %}
+	  </tr>
+	</thead>
+	<tbody>
+
+	{% for p in taxi_roster %}
+
+	{% if p.is_ir %}
+	<tr class="table-danger">
+	{% elif p.is_franchised %}
+	<tr class="table-info">
+	{% else %}
+	<tr class="table-primary">
+		{% endif %}
+
+
+	  
+		<th scope="row">
+			{{p.player.full_name}}
+			{% if p.is_franchised %}
+			*
+			{% endif %}
+			{% if p.is_ir %}
+			&dagger;
+			{% endif %}
+		
+		
+		</th>
+		<td>{{p.player.position}}</td>
+		<td class="numbertext">{{p.season}}</td>
+		<td>{{p.salary}} {% if p.unadjusted_salary %}({{p.unadjusted_salary}}){% endif %}</td>
+
+<!-- 
+		{% if p.unadjusted_salary %}
+		<td>{{p.unadjusted_salary}}</td>
+		{% else %}
+		<td></td>
+		{% endif %} -->
+
+		<!-- <td>{{p.is_Franchised}}</td> -->
+		<td>{{p.date_added}}</td>
+
+		<!-- {% if p.date_removed %}
+		<td>{{p.date_removed}}</td>
+		{% else %}
+		<td></td>
+		{% endif %} -->
+		{% if current_user.id in alist %}
+		<td><a href="{{ url_for('updateRosterPlayer', id=p.id)}}">Edit</a></td>
+		<td><a href="{{ url_for('deleteRosterPlayer', id=p.id)}}">Delete</a></td>
+		{% endif %}
+
+	</tr>
+
+	  {% endfor %}
+	  <tr class = "table-dark">
+		<th scope="col">Total</th>
+		<th scope="col"></th>
+		<th scope="col"></th>
+		<th scope="col">{{taxi_salary}}</th>
+		<th scope="col"></th>
+		<!-- <th scope="col">Franchised?</th> -->
+		<th scope="col"></th>
+		{% if current_user.id in alist %}
+		<th scope="col"></th>
+		<th scope="col"></th>
+		{% endif %}
+
+	  </tr>
+
+	</tbody>
+  </table>
+
+  {% else %}
+  <em>No results found.</em>
+
+  {% endif %}
 <br>
 
 
@@ -137,13 +242,14 @@
   {% if capholds %}
 
   <h3>Cap Holds</h3>
-  <table class="table table-hover table-striped table-sm">
+  <table class="table table-numbers table-hover table-striped table-sm">
   <!-- <table class="table"> -->
   
   
 	  <thead class="table-dark">
 		<tr>
 		  <th scope="col">Player</th>
+		  <th scope="col">Position</th>
 		  <th scope="col">Season</th>
 		  <th scope="col">Hold</th>
 		  <th scope="col">Reason</th>
@@ -164,6 +270,7 @@
 		<th scope="row">
 			  {{ch.player.full_name}}
 		  </th>
+		  <td>{{ch.player.position}}</td>
 		  <td>{{ch.season}}</td>
 		  <td>{{ch.caphold}}</td>
   		  <td>{{ch.reason}}</td>
@@ -180,6 +287,7 @@
 			<th>
 				  Total
 			  </th>
+			  <td></td>
 			  <td></td>
 			  <td>{{total_cap_holds}}</td>
 				<td></td>
@@ -200,13 +308,14 @@
 	<h3>Roster History</h3>
 
 	{% if roster_history %}
-<table class="table table-hover table-striped table-sm">
+<table class="table table-numbers table-hover table-striped table-sm">
 <!-- <table class="table"> -->
 
 
 	<thead class="table-dark">
 	  <tr>
 		<th scope="col">Player</th>
+		<th scope="col">Position</th>
 		<th scope="col">Season</th>
 		<th scope="col">Salary</th>
 		<th scope="col">Original Salary</th>
@@ -232,15 +341,16 @@
 	  
 		<th scope="row">
 			{{p.player.full_name}}
+			{% if p.is_franchised %}
+			*
+			{% endif %}
 			{% if p.is_ir %}
 			&dagger;
-			{% elif p.is_franchised %}
-			*
-			{% else %}
 			{% endif %}
 		
 		
 		</th>
+		<td>{{p.player.position}}</td>
 		<td>{{p.season}}</td>
 		<td>{{p.salary}}</td>
 
