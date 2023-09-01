@@ -511,6 +511,8 @@ def update_roster_ir_and_taxi():
 
 @app.route('/rosters/')
 def view_rosters():
+    update_roster_ir_and_taxi()
+
     # teams = db.session.query(Team).join(Team.owner).order_by(Owners.teamname)
     # teams = Team.query.order_by(Team.id).all()
     teams = Team.query.join(Team.owner).order_by(Owners.teamname).all()
