@@ -2084,8 +2084,8 @@ if __name__ == '__main__':
     # db.create_all()
     # app.run(debug=True)
 
-    # app.run(host='0.0.0.0', port=3000)
-    app.run(host=host, port=port, debug=debug)
+    app.run(host='0.0.0.0:$PORT')
+    # app.run(host=host, port=port, debug=debug)
     # app.run(debug=True, port=os.getenv("PORT", default=3000))
 
 
