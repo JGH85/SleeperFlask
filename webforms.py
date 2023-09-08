@@ -94,6 +94,16 @@ class AddPlayerRosterForm(FlaskForm):
     date_removed = DateTimeLocalField("Date Removed", format = "%Y-%m-%d %H:%M")
     submit = SubmitField("Submit")
 
+# class EditCapHoldRosterForm(FlaskForm):
+#     player_id = SelectField("Player", choices = [])
+#     caphold = DecimalField("Cap Hold Amount", validators=[DataRequired()])
+#     team = SelectField("Team", choices = [], coerce = int)
+#     season = SelectField("Season", choices = [], coerce = int)
+#     note = StringField("Note")
+#     effective_date = DateTimeLocalField("Date Added", format = "%Y-%m-%d %H:%M")
+#     associated_transaction_id = SelectField("Associated Trade", choices = [])
+#     submit = SubmitField("Submit")
+
 class FranchisePlayerRosterForm(FlaskForm):
     player_id = SelectField("Player", choices = [])
     salary = DecimalField("Franchised Salary", validators=[DataRequired()])
@@ -105,13 +115,13 @@ class FranchisePlayerRosterForm(FlaskForm):
     submit = SubmitField("Submit")
 
 class CapHoldForm(FlaskForm):
-    playername = StringField("Player")
+    player_id = SelectField("Player", choices = [])
     team = SelectField("Team", choices = [], coerce = int)
     caphold = DecimalField("Cap Hold", validators=[DataRequired()])
     season = IntegerField("Season", validators=[DataRequired()])
     reason = StringField("Reason", validators=[Length(max=20)])
     note = CKEditorField('Note')
-    effective_date = DateTimeField("Effective Date", format = "%Y-%m-%d")
+    effective_date = DateField("Effective Date", format = "%Y-%m-%d")
     submit = SubmitField("Submit")
 
 class SearchForm(FlaskForm):
